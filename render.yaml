@@ -8,8 +8,9 @@ services:
     plan: free
     region: singapore
     rootDir: technical_doc_portal
-    dockerfilePath: ./technical_doc_portal/Dockerfile
-    dockerContext: ./technical_doc_portal
+    # With rootDir set, Render resolves these relative to rootDir.
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
     healthCheckPath: /login
     autoDeploy: true
     envVars:
