@@ -1,0 +1,12 @@
+node_modules
+.next
+storage
+storage-test
+test-results
+playwright-report
+.env*
+!.env.example
+doc_sample
+e2e
+.git
+.claude

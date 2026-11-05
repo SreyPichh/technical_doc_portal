@@ -1,0 +1,55 @@
+"use client";
+
+import { useState } from "react";
+import { Dialog as D } from "radix-ui";
+import { Menu, X } from "lucide-react";
+import { NavLink } from "./nav-link";
+import { cn } from "@/lib/utils";
+
+export function MobileNav({
+  items,
+  title,
+  tone = "dark",
+}: {
+  items: { href: string; label: string; exact?: boolean }[];
+  title: string;
+  tone?: "dark" | "light";
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <D.Root open={open} onOpenChange={setOpen}>
+      <D.Trigger
+        className={cn("rounded-md p-2 lg:hidden cursor-pointer", tone === "dark" ? "text-white hover:bg-white/10" : "hover:bg-grey-50")}
+        aria-label="Open menu"
+      >
+        <Menu className="size-5" />
+      </D.Trigger>
+      <D.Portal>
+        <D.Overlay className="fixed inset-0 z-50 bg-[#0b1530]/45" />
+        <D.Content className="fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] bg-surface shadow-xl">
+          <div className="flex items-center justify-between border-b border-border px-4 py-3">
+            <D.Title className="font-semibold">{title}</D.Title>
+            <D.Description className="sr-only">Navigation</D.Description>
+            <D.Close className="rounded p-1 hover:bg-grey-50 cursor-pointer" aria-label="Close menu">
+              <X className="size-5" />
+            </D.Close>
+          </div>
+          <nav className="flex flex-col p-2">
+            {items.map((i) => (
+              <NavLink
+                key={i.href}
+                href={i.href}
+                exact={i.exact}
+                onClick={() => setOpen(false)}
+                className="rounded-md px-3 py-2.5 text-sm text-foreground hover:bg-grey-50"
+                activeClassName="bg-navy-50 font-medium text-navy"
+              >
+                {i.label}
+              </NavLink>
+            ))}
+          </nav>
+        </D.Content>
+      </D.Portal>
+    </D.Root>
+  );
+}

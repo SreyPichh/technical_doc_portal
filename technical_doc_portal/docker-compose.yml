@@ -1,0 +1,38 @@
+# Single-server deployment: PostgreSQL + the portal, with persistent volumes.
+#   cp .env.example .env   # then edit secrets
+#   docker compose up -d --build
+#   docker compose exec app npm run user:create -- --email you@company.com --name "Your Name" --role super_admin
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: nsk_portal
+      POSTGRES_USER: nsk
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nsk -d nsk_portal"]
+      interval: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://nsk:${POSTGRES_PASSWORD}@db:5432/nsk_portal
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      TZ: ${TZ:-Asia/Phnom_Penh}
+    ports:
+      - "3000:3000"
+    volumes:
+      - storage:/data/storage
+
+volumes:
+  pgdata:
+  storage:
