@@ -10,7 +10,6 @@ import {
   setCategoryStatusAction,
   updateCategoryAction,
 } from "@/server/actions/categories";
-import { CATEGORY_ICONS, CategoryIcon } from "@/components/documents/category-icon";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
@@ -63,12 +62,7 @@ function Row({ cat, count, first, last, top }: { cat: Cat; count: number; first:
       router.refresh();
     });
   return (
-    <div className={cn("flex flex-wrap items-center gap-3 px-4", top ? "py-3.5" : "border-b border-border/70 py-2 pl-14 last:border-0")}>
-      {top && (
-        <span className="rounded-md bg-navy-50 p-2 text-navy">
-          <CategoryIcon icon={cat.icon} className="size-5" />
-        </span>
-      )}
+    <div className={cn("flex flex-wrap items-center gap-3 px-4", top ? "py-3.5" : "border-b border-border/70 py-2 pl-8 last:border-0")}>
       <div className="min-w-0 flex-1">
         <p className={cn(top ? "font-semibold" : "text-sm")}>
           {cat.name}
@@ -135,7 +129,6 @@ function CategoryDialog({
     }
     return res;
   }, null);
-  const [icon, setIcon] = useState(category?.icon ?? "folder");
   const isSub = Boolean(parent || category?.parentId);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -153,24 +146,6 @@ function CategoryDialog({
               <Field label="Description">
                 <Textarea name="description" defaultValue={category?.description ?? ""} rows={2} maxLength={300} />
               </Field>
-              <fieldset>
-                <legend className="mb-1.5 text-[13px] font-medium">Icon</legend>
-                <input type="hidden" name="icon" value={icon} />
-                <div className="flex flex-wrap gap-1.5">
-                  {Object.keys(CATEGORY_ICONS).map((k) => (
-                    <button
-                      key={k}
-                      type="button"
-                      onClick={() => setIcon(k)}
-                      className={cn("rounded-md border p-2 cursor-pointer", icon === k ? "border-navy bg-navy text-white" : "border-border hover:bg-navy-50")}
-                      aria-label={k}
-                      aria-pressed={icon === k}
-                    >
-                      <CategoryIcon icon={k} className="size-4" />
-                    </button>
-                  ))}
-                </div>
-              </fieldset>
             </>
           )}
           {isSub && <input type="hidden" name="description" value={category?.description ?? ""} />}

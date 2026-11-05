@@ -10,16 +10,23 @@ export function MobileNav({
   items,
   title,
   tone = "dark",
+  className,
 }: {
   items: { href: string; label: string; exact?: boolean }[];
   title: string;
   tone?: "dark" | "light";
+  /** Overrides the breakpoint at which the menu button hides (default: lg). */
+  className?: string;
 }) {
   const [open, setOpen] = useState(false);
   return (
     <D.Root open={open} onOpenChange={setOpen}>
       <D.Trigger
-        className={cn("rounded-md p-2 lg:hidden cursor-pointer", tone === "dark" ? "text-white hover:bg-white/10" : "hover:bg-grey-50")}
+        className={cn(
+          "flex size-10 items-center justify-center rounded-md lg:hidden cursor-pointer",
+          tone === "dark" ? "text-white hover:bg-white/10 focus-visible:outline-white" : "hover:bg-grey-50",
+          className,
+        )}
         aria-label="Open menu"
       >
         <Menu className="size-5" />
@@ -41,7 +48,7 @@ export function MobileNav({
                 href={i.href}
                 exact={i.exact}
                 onClick={() => setOpen(false)}
-                className="rounded-md px-3 py-2.5 text-sm text-foreground hover:bg-grey-50"
+                className="flex min-h-11 items-center rounded-md px-3 text-[15px] text-foreground hover:bg-grey-50"
                 activeClassName="bg-navy-50 font-medium text-navy"
               >
                 {i.label}

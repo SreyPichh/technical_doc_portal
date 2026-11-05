@@ -14,6 +14,7 @@ import { DefinitionList, PageHeader } from "@/components/ui/misc";
 import { Button } from "@/components/ui/button";
 import { fmtDate } from "@/lib/utils";
 import { formatBytes } from "@/lib/text";
+import { formatSummary } from "@/components/documents/document-card";
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
@@ -79,7 +80,7 @@ export default async function PortalDocumentPage({ params, searchParams }: PageP
           </>
         }
       />
-      <div className="grid gap-6 xl:grid-cols-[1fr_320px]">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0">
           {rev.fileKey ? (
             <PdfViewer
@@ -99,21 +100,52 @@ export default async function PortalDocumentPage({ params, searchParams }: PageP
         </div>
         <aside className="space-y-4">
           <Card>
+            <CardHeader title="Revision" />
+            <CardBody className="space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-2xl font-semibold tabular">{rev.revisionNumber}</span>
+                <DocLabelBadge label={doc.label} />
+              </div>
+              <DefinitionList
+                items={[
+                  ["Release date", fmtDate(rev.releaseDate)],
+                  ["First published", fmtDate(doc.firstPublishedAt)],
+                  ...(doc.lastPublishedAt && doc.firstPublishedAt && doc.lastPublishedAt.getTime() !== doc.firstPublishedAt.getTime()
+                    ? [["Last updated", fmtDate(doc.lastPublishedAt)] as [string, string]]
+                    : []),
+                ]}
+              />
+              {rev.fileKey ? (
+                <Button asChild className="h-11 w-full">
+                  <a href={`${fileUrl}?download=1`} data-testid="sidebar-download">
+                    <Download /> Download PDF
+                    {rev.fileSize ? <span className="font-normal opacity-80">({formatBytes(rev.fileSize)})</span> : null}
+                  </a>
+                </Button>
+              ) : authoredHtml ? (
+                <Button asChild variant="secondary" className="h-11 w-full">
+                  <a href={`/print/documents/${doc.id}`} target="_blank" rel="noopener">
+                    <Printer /> Print / Save as PDF
+                  </a>
+                </Button>
+              ) : null}
+              <p className="text-[13px] leading-relaxed text-muted">
+                This is the latest approved revision. The portal always shows the current version; earlier revisions are kept in NSK&apos;s records.
+              </p>
+            </CardBody>
+          </Card>
+          <Card>
             <CardHeader title="Document information" />
             <CardBody>
               <DefinitionList
                 items={[
                   ["Document No.", <span key="n" className="font-mono">{doc.documentNumber}</span>],
-                  ["Revision", <span key="r" className="font-medium">{rev.revisionNumber} <span className="text-muted font-normal">(current)</span></span>],
-                  ["Release date", fmtDate(rev.releaseDate)],
-                  ["Published", fmtDate(doc.lastPublishedAt)],
                   ["Category", doc.subcategoryName ? `${doc.categoryName} › ${doc.subcategoryName}` : doc.categoryName],
                   ["Type", doc.documentType],
+                  ...(doc.productModels.length ? [["Product models", doc.productModels.join(", ")] as [string, string]] : []),
                   ["Language", doc.language],
                   ["Source", doc.source],
-                  ...(doc.productModels.length ? [["Products", doc.productModels.join(", ")] as [string, string]] : []),
-                  ...(rev.pageCount ? [["Pages", String(rev.pageCount)] as [string, string]] : []),
-                  ...(rev.fileSize ? [["File size", formatBytes(rev.fileSize)] as [string, string]] : []),
+                  ["Format", formatSummary(doc)],
                 ]}
               />
             </CardBody>
@@ -124,10 +156,10 @@ export default async function PortalDocumentPage({ params, searchParams }: PageP
               <CardBody className="text-sm leading-relaxed text-muted">{doc.description}</CardBody>
             </Card>
           )}
-          <p className="px-1 text-xs leading-relaxed text-subtle">
+          <p className="px-1 text-[13px] leading-relaxed text-muted">
             {doc.kind === "uploaded_pdf"
-              ? "This is the original document issued by NSK HQ, provided unchanged. Always refer to the portal for the latest approved revision."
-              : "This document was authored in the NSK portal."}
+              ? "This is the original document issued by NSK HQ, provided unchanged."
+              : "This document was written in the NSK portal."}
           </p>
         </aside>
       </div>

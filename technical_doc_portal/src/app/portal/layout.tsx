@@ -1,44 +1,43 @@
-import { Search } from "lucide-react";
+import Link from "next/link";
 import { requirePermission } from "@/server/auth/dal";
 import { can, ROLE_LABELS } from "@/lib/permissions";
+import { bellUpdates } from "@/server/services/portal-notifications";
 import { Brand } from "@/components/shell/brand";
 import { UserMenu } from "@/components/shell/user-menu";
 import { NavLink } from "@/components/shell/nav-link";
 import { MobileNav } from "@/components/shell/mobile-nav";
-import Link from "next/link";
+import { HeaderSearch } from "@/components/shell/header-search";
+import { NotificationBell } from "@/components/shell/notification-bell";
 
 const NAV = [
   { href: "/portal", label: "Dashboard", exact: true },
   { href: "/portal/documents", label: "All Documents" },
   { href: "/portal/categories", label: "Product Categories" },
   { href: "/portal/updates", label: "Latest Updates" },
-  { href: "/portal/saved", label: "Downloads / Saved" },
-  { href: "/portal/account", label: "My Account" },
+  { href: "/portal/saved", label: "My Downloads" },
 ];
 
 export default async function PortalLayout({ children }: LayoutProps<"/portal">) {
   const user = await requirePermission("portal.view");
   const staff = can(user.role, "admin.access");
+  const bell = await bellUpdates(user);
   return (
     <div className="flex min-h-dvh flex-col">
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[70] focus:rounded-md focus:bg-surface focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:text-navy focus:shadow-lg"
+      >
+        Skip to content
+      </a>
       <header className="bg-navy">
-        <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 sm:px-6">
-          <MobileNav items={NAV} title="NSK Technical Information" />
-          <Link href="/portal" aria-label="Portal home">
+        <div className="mx-auto flex h-16 max-w-7xl items-center gap-2 px-4 sm:gap-4 sm:px-6">
+          <MobileNav items={NAV} title="NSK Technical Information" className="md:hidden" />
+          <Link href="/portal" aria-label="NSK Technical Information — dashboard" className="shrink-0 rounded focus-visible:outline-white">
             <Brand compact />
           </Link>
-          <form action="/portal/documents" className="ml-auto hidden w-full max-w-sm md:block" role="search">
-            <label className="relative block">
-              <span className="sr-only">Search documents</span>
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-white/55" />
-              <input
-                name="q"
-                placeholder="Search document no., model, order code…"
-                className="h-9 w-full rounded-md border border-white/15 bg-white/10 pl-9 pr-3 text-sm text-white placeholder:text-white/50 focus:border-white/40 focus:bg-white/15 focus:outline-none"
-              />
-            </label>
-          </form>
-          <div className="ml-auto md:ml-2">
+          <HeaderSearch className="mx-auto hidden w-full max-w-xl md:block" />
+          <div className="ml-auto flex items-center gap-1 md:ml-0">
+            <NotificationBell items={bell.items} unread={bell.unread} />
             <UserMenu
               name={user.fullName}
               email={user.email}
@@ -49,16 +48,19 @@ export default async function PortalLayout({ children }: LayoutProps<"/portal">)
             />
           </div>
         </div>
+        <div className="px-4 pb-3 md:hidden">
+          <HeaderSearch id="header-search-mobile" />
+        </div>
       </header>
-      <nav className="hidden border-b border-border bg-surface lg:block" aria-label="Portal">
-        <div className="mx-auto flex max-w-7xl gap-1 px-6">
+      <nav className="hidden border-b border-border bg-surface md:block" aria-label="Portal">
+        <div className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-4 sm:px-6">
           {NAV.map((n) => (
             <NavLink
               key={n.href}
               href={n.href}
               exact={n.exact}
-              className="border-b-2 border-transparent px-3 py-3 text-sm text-muted hover:text-navy"
-              activeClassName="!border-navy font-medium !text-navy"
+              className="whitespace-nowrap border-b-2 border-transparent px-3 py-3 text-sm text-muted transition-colors hover:border-navy-100 hover:text-navy focus-visible:outline-offset-[-2px]"
+              activeClassName="!border-navy font-semibold !text-navy"
             >
               {n.label}
             </NavLink>
@@ -75,9 +77,11 @@ export default async function PortalLayout({ children }: LayoutProps<"/portal">)
           </div>
         </div>
       )}
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 sm:py-8">{children}</main>
+      <main id="main" tabIndex={-1} className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 outline-none sm:px-6 sm:py-8">
+        {children}
+      </main>
       <footer className="border-t border-border bg-surface">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2 px-4 py-4 text-xs text-subtle sm:px-6">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2 px-4 py-4 text-[13px] text-muted sm:px-6">
           <span>NSK Technical Information Portal — for authorised NSK dealers and distributors.</span>
           <span>Official documents are provided exactly as issued by NSK HQ.</span>
         </div>

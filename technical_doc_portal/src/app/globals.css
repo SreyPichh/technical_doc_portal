@@ -7,7 +7,7 @@
   --surface: #ffffff;
   --foreground: #1b2433;
   --muted: #5d6b82;
-  --subtle: #8a96a8;
+  --subtle: #66738a; /* ≥4.5:1 on white for small metadata text */
   --border: #dfe4ec;
   --border-strong: #c8d0dc;
   --navy: #132c5b;
@@ -50,7 +50,7 @@
   --color-amber-50: var(--amber-50);
   --color-grey-50: var(--grey-50);
   --color-ring: var(--ring);
-  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-plex-mono), ui-monospace, monospace;
 }
 
@@ -315,4 +315,12 @@ body {
   .no-print {
     display: none !important;
   }
+}
+
+/* Dim the current results while a new search is loading. */
+[data-results] {
+  transition: opacity 0.15s;
+}
+main:has(form[data-pending]) [data-results] {
+  opacity: 0.55;
 }

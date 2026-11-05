@@ -48,6 +48,7 @@ export type SearchFilters = {
   categoryId?: string;
   subcategoryId?: string;
   documentTypeId?: string;
+  productModel?: string;
   language?: string;
   from?: string; // YYYY-MM-DD, applies to last publication date
   to?: string;
@@ -101,6 +102,7 @@ export async function searchDocuments(
   if (f.subcategoryId) where.push(eq(d.subcategoryId, f.subcategoryId));
   if (f.documentTypeId) where.push(eq(d.documentTypeId, f.documentTypeId));
   if (f.language) where.push(eq(d.language, f.language));
+  if (f.productModel) where.push(sql`${f.productModel} = any(${d.productModels})`);
   if (f.from) where.push(gte(sql`coalesce(${d.lastPublishedAt}, ${d.createdAt})`, new Date(`${f.from}T00:00:00Z`)));
   if (f.to) where.push(lte(sql`coalesce(${d.lastPublishedAt}, ${d.createdAt})`, new Date(`${f.to}T23:59:59Z`)));
   if (f.labels?.length) where.push(labelCondition(f.labels, settings));
@@ -342,6 +344,30 @@ export async function getLanguages(user: SessionUser, scope: "portal" | "admin")
   return rows.map((x) => x.language);
 }
 
+/** Headline numbers for the dealer dashboard (portal-visible documents only). */
+export async function portalStats(user: SessionUser) {
+  const settings = await getSettings();
+  const visible = portalVisibilityCondition(user);
+  const [row] = await db
+    .select({
+      total: sql<number>`count(*)::int`,
+      newCount: sql<number>`(count(*) filter (where ${labelCondition(["NEW"], settings)!}))::int`,
+      updatedCount: sql<number>`(count(*) filter (where ${labelCondition(["UPDATED"], settings)!}))::int`,
+    })
+    .from(d)
+    .where(visible);
+  return { ...row, newLabelDays: settings.newLabelDays, updatedLabelDays: settings.updatedLabelDays };
+}
+
+/** Distinct product models across the documents this user can see (for the model filter). */
+export async function getProductModels(user: SessionUser, scope: "portal" | "admin" = "portal") {
+  const rows = await db
+    .selectDistinct({ model: sql<string>`unnest(${d.productModels})` })
+    .from(d)
+    .where(scope === "portal" ? portalVisibilityCondition(user) : undefined);
+  return rows.map((x) => x.model).filter(Boolean).sort((a, b) => a.localeCompare(b));
+}
+
 /** Document counts per top-level category (including subcategories), portal-visible only. */
 export async function portalCategoryCounts(user: SessionUser) {
   const rows = await db
@@ -408,7 +434,9 @@ export async function pendingRevisions(limit = 10) {
 }
 
 /** Publication events visible to this user (Latest Updates). Withdrawal notices are shown without file access. */
-export async function portalUpdates(user: SessionUser, page = 1, pageSize = 25) {
+export type UpdateType = "new" | "updated" | "withdrawn";
+
+export async function portalUpdates(user: SessionUser, page = 1, pageSize = 25, type?: UpdateType) {
   const n = schema.notifications;
   const visible = portalVisibilityCondition(user);
   // Withdrawal notices remain visible to dealers who could see the document before (same region rules).
@@ -424,7 +452,9 @@ export async function portalUpdates(user: SessionUser, page = 1, pageSize = 25) 
           )
         : eq(d.visibility, "all_dealers"),
   );
-  const cond = or(and(visible, inArray(n.type, ["new", "updated", "restored"])), withdrawnVisible);
+  const typeFilter =
+    type === "new" ? eq(n.type, "new") : type === "updated" ? inArray(n.type, ["updated", "restored"]) : type === "withdrawn" ? eq(n.type, "withdrawn") : undefined;
+  const cond = and(or(and(visible, inArray(n.type, ["new", "updated", "restored"])), withdrawnVisible), typeFilter);
   const rows = await db
     .select({
       id: n.id,

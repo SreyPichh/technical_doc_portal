@@ -19,3 +19,10 @@ export async function toggleSavedAction(documentId: string) {
   revalidatePath("/portal/saved");
   return { saved: !existing.length };
 }
+
+/** Marks every publication event up to now as read for the header bell. */
+export async function markUpdatesSeenAction() {
+  const user = await assertPermission("portal.view");
+  await db.update(schema.users).set({ notificationsSeenAt: new Date() }).where(eq(schema.users.id, user.id));
+  return { ok: true };
+}

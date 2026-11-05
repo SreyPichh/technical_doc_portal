@@ -15,6 +15,13 @@
       "when": 1793813917505,
       "tag": "0001_revision_integrity",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793885434778,
+      "tag": "0002_notifications_seen",
+      "breakpoints": true
     }
   ]
 }

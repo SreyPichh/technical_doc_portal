@@ -437,7 +437,7 @@ export function PdfViewer({
   );
 
   const btn =
-    "inline-flex h-8 min-w-8 items-center justify-center gap-1.5 rounded-md px-2 text-[13px] text-foreground hover:bg-grey-50 disabled:opacity-40 disabled:pointer-events-none cursor-pointer [&_svg]:size-4";
+    "inline-flex h-10 min-w-10 items-center justify-center gap-1.5 rounded-md px-2 text-[13px] text-foreground hover:bg-grey-50 disabled:opacity-40 disabled:pointer-events-none cursor-pointer sm:h-8 sm:min-w-8 [&_svg]:size-4";
 
   return (
     <div
@@ -453,13 +453,13 @@ export function PdfViewer({
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-1 border-b border-border bg-surface px-2 py-1.5">
         {title && (
-          <div className="mr-2 hidden min-w-0 max-w-[28rem] flex-col leading-tight xl:flex">
+          <div className={cn("mr-2 min-w-0 max-w-[28rem] flex-col leading-tight", fullscreen ? "flex" : "hidden")}>
             <span className="truncate text-[13px] font-semibold">{title}</span>
             {subtitle && <span className="truncate text-[11px] text-muted">{subtitle}</span>}
           </div>
         )}
         <div className="flex items-center gap-0.5">
-          <button className={btn} onClick={() => goTo(Math.max(1, current - 1))} disabled={current <= 1} aria-label="Previous page">
+          <button className={btn} onClick={() => goTo(Math.max(1, current - 1))} disabled={current <= 1} aria-label="Previous page" title="Previous page">
             <ChevronLeft />
           </button>
           <form
@@ -473,31 +473,32 @@ export function PdfViewer({
             <input
               value={pageInput}
               onChange={(e) => setPageInput(e.target.value.replace(/\D/g, ""))}
-              className="h-7 w-10 rounded border border-border-strong text-center text-foreground tabular"
+              className="h-9 w-11 rounded border border-border-strong text-center text-foreground tabular sm:h-7 sm:w-10"
               aria-label="Page number"
               inputMode="numeric"
             />
             <span className="tabular" data-testid="page-count">/ {total || "–"}</span>
           </form>
-          <button className={btn} onClick={() => goTo(Math.min(total, current + 1))} disabled={current >= total} aria-label="Next page">
+          <button className={btn} onClick={() => goTo(Math.min(total, current + 1))} disabled={current >= total} aria-label="Next page" title="Next page">
             <ChevronRight />
           </button>
         </div>
-        <span className="mx-1 h-5 w-px bg-border" />
+        <span className="mx-1 hidden h-5 w-px bg-border sm:block" aria-hidden />
         <div className="flex items-center gap-0.5">
-          <button className={btn} onClick={() => zoom(-1)} aria-label="Zoom out" disabled={scale <= ZOOM_STEPS[0]}>
+          <button className={btn} onClick={() => zoom(-1)} aria-label="Zoom out" title="Zoom out" disabled={scale <= ZOOM_STEPS[0]}>
             <ZoomOut />
           </button>
           <span className="w-12 text-center text-[13px] tabular text-muted" data-testid="zoom-level">
             {pct}%
           </span>
-          <button className={btn} onClick={() => zoom(1)} aria-label="Zoom in" disabled={scale >= ZOOM_STEPS.at(-1)!}>
+          <button className={btn} onClick={() => zoom(1)} aria-label="Zoom in" title="Zoom in" disabled={scale >= ZOOM_STEPS.at(-1)!}>
             <ZoomIn />
           </button>
           <button
             className={cn(btn, fit === "width" && "bg-navy-50 text-navy")}
             onClick={() => setFit("width")}
             aria-pressed={fit === "width"}
+            aria-label="Fit to width"
             title="Fit to width"
           >
             <MoveHorizontal />
@@ -507,6 +508,7 @@ export function PdfViewer({
             className={cn(btn, fit === "page" && "bg-navy-50 text-navy")}
             onClick={() => setFit("page")}
             aria-pressed={fit === "page"}
+            aria-label="Fit to page"
             title="Fit to page"
           >
             <Scan />
@@ -518,7 +520,7 @@ export function PdfViewer({
             <Search />
           </button>
           {downloadUrl && (
-            <a className={btn} href={downloadUrl} title="Download original PDF" data-testid="viewer-download">
+            <a className={btn} href={downloadUrl} title="Download original PDF" aria-label="Download original PDF" data-testid="viewer-download">
               <Download />
               <span className="hidden sm:inline">Download</span>
             </a>

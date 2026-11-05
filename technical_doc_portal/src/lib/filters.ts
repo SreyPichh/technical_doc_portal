@@ -21,6 +21,7 @@ export function parseFilters(sp: SP, opts: { allowStatusLabels?: boolean } = {})
     categoryId: category && UUID.test(category) ? category : undefined,
     subcategoryId: subcategory && UUID.test(subcategory) ? subcategory : undefined,
     documentTypeId: type && UUID.test(type) ? type : undefined,
+    productModel: one(sp.model)?.slice(0, 100),
     language: one(sp.lang)?.slice(0, 40),
     from: from && DATE.test(from) ? from : undefined,
     to: to && DATE.test(to) ? to : undefined,

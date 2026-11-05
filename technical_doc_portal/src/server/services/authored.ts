@@ -133,7 +133,7 @@ export function authoredPrintHtml(opts: { title: string; number: string; revisio
   return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(opts.number)} ${esc(opts.title)}</title>
 <style>
 @page{size:A4;margin:22mm 16mm 18mm}
-body{font-family:"IBM Plex Sans",Arial,Helvetica,sans-serif;color:#1b2433;font-size:10.5pt;line-height:1.55;margin:0}
+body{font-family:Inter,Arial,Helvetica,sans-serif;color:#1b2433;font-size:10.5pt;line-height:1.55;margin:0}
 .hdr{background:#132c5b;color:#fff;padding:10px 16px;display:flex;justify-content:space-between;align-items:center}
 .hdr span{font-size:12pt;letter-spacing:.04em}
 .meta{text-align:right;font-size:9pt;color:#5d6b82;margin:10px 0 18px}

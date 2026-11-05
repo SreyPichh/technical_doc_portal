@@ -2,71 +2,89 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Bell } from "lucide-react";
 import { requirePermission } from "@/server/auth/dal";
-import { portalUpdates } from "@/server/services/documents";
-import { Badge } from "@/components/ui/badge";
+import { portalUpdates, type UpdateType } from "@/server/services/documents";
+import { unreadSince } from "@/server/services/portal-notifications";
+import { UpdateRow } from "@/components/documents/update-list";
 import { EmptyState, PageHeader, Pagination } from "@/components/ui/misc";
-import { fmtDate } from "@/lib/utils";
+import { cn, fmtDate } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Latest updates" };
 
-const TYPE: Record<string, { label: string; tone: "solidGreen" | "solidBlue" | "red" | "navy" | "neutral" }> = {
-  new: { label: "NEW", tone: "solidGreen" },
-  updated: { label: "UPDATED", tone: "solidBlue" },
-  restored: { label: "REINSTATED", tone: "navy" },
-  withdrawn: { label: "WITHDRAWN", tone: "red" },
-  archived: { label: "ARCHIVED", tone: "neutral" },
-};
+const TABS: { type?: UpdateType; label: string }[] = [
+  { label: "All updates" },
+  { type: "new", label: "New documents" },
+  { type: "updated", label: "Updated revisions" },
+  { type: "withdrawn", label: "Withdrawn" },
+];
 
 export default async function UpdatesPage({ searchParams }: PageProps<"/portal/updates">) {
   const user = await requirePermission("portal.view");
-  const page = Math.max(1, Number((await searchParams).page) || 1);
-  const { rows, total, pageSize } = await portalUpdates(user, page);
+  const sp = await searchParams;
+  const page = Math.max(1, Number(sp.page) || 1);
+  const type = TABS.find((t) => t.type && t.type === sp.type)?.type;
+  const [{ rows, total, pageSize }, since] = await Promise.all([portalUpdates(user, page, 25, type), unreadSince(user)]);
+  const unread = rows.filter((e) => e.createdAt > since).length;
+  const href = (t?: UpdateType, p?: number) => {
+    const q = new URLSearchParams();
+    if (t) q.set("type", t);
+    if (p && p > 1) q.set("page", String(p));
+    return `/portal/updates${q.size ? `?${q}` : ""}`;
+  };
+
   return (
     <div>
-      <PageHeader title="Latest updates" description="Every publication event, newest first: new documents, new revisions and withdrawals." />
+      <PageHeader
+        title="Latest updates"
+        description="What's new in the portal, newest first: new documents, new revisions and withdrawals."
+      />
+      <nav className="mb-4 flex gap-1 overflow-x-auto border-b border-border" aria-label="Update type">
+        {TABS.map((t) => {
+          const on = t.type === type;
+          return (
+            <Link
+              key={t.label}
+              href={href(t.type)}
+              aria-current={on ? "page" : undefined}
+              className={cn(
+                "-mb-px whitespace-nowrap border-b-2 px-3 py-2.5 text-sm transition-colors",
+                on ? "border-navy font-semibold text-navy" : "border-transparent text-muted hover:border-navy-100 hover:text-navy",
+              )}
+            >
+              {t.label}
+            </Link>
+          );
+        })}
+      </nav>
+      {unread > 0 && (
+        <p className="mb-3 text-sm text-muted">
+          <span className="font-semibold text-blue">{unread} unread</span> since you last opened your notifications.
+        </p>
+      )}
       {rows.length ? (
-        <ol className="relative space-y-0 rounded-lg border border-border bg-surface">
+        <ol className="overflow-hidden rounded-lg border border-border bg-surface">
           {rows.map((e, i) => {
             const day = fmtDate(e.createdAt);
             const header = i === 0 || day !== fmtDate(rows[i - 1].createdAt);
-            const t = TYPE[e.type];
             return (
               <li key={e.id} className="border-b border-border last:border-0">
-                {header && <p className="bg-grey-50 px-5 py-1.5 text-[12px] font-semibold tabular text-muted">{day}</p>}
-                <div className="flex flex-wrap items-start gap-x-4 gap-y-1 px-5 py-3.5">
-                  <Badge tone={t.tone} className="mt-0.5 w-24 justify-center">
-                    {t.label}
-                  </Badge>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm">
-                      <span className="font-mono text-[12px] text-navy">{e.documentNumber}</span>{" "}
-                      {e.type === "withdrawn" ? (
-                        <span className="font-medium">{e.docTitle}</span>
-                      ) : (
-                        <Link href={`/portal/documents/${e.documentId}`} className="font-medium hover:underline">
-                          {e.docTitle}
-                        </Link>
-                      )}
-                    </p>
-                    <p className="mt-0.5 text-[13px] text-muted">
-                      {e.message} · {e.categoryName}
-                      {e.type === "withdrawn" && e.statusReason ? ` · Reason: ${e.statusReason}` : ""}
-                    </p>
-                    {e.type === "withdrawn" && (
-                      <p className="mt-1 text-[12px] text-red">This document has been withdrawn and is no longer available. Do not use previously downloaded copies.</p>
-                    )}
-                  </div>
-                </div>
+                {header && (
+                  <p className="border-b border-border bg-grey-50 px-5 py-1.5 text-[13px] font-semibold tabular text-muted">
+                    <time dateTime={e.createdAt.toISOString()}>{day}</time>
+                  </p>
+                )}
+                <UpdateRow e={e} unread={e.createdAt > since} showDate={false} />
               </li>
             );
           })}
         </ol>
       ) : (
         <div className="rounded-lg border border-border bg-surface">
-          <EmptyState icon={<Bell />} title="No updates yet" />
+          <EmptyState icon={<Bell />} title={type ? "Nothing here yet" : "No updates yet"}>
+            New documents and revisions appear here as soon as NSK publishes them.
+          </EmptyState>
         </div>
       )}
-      <Pagination page={page} pageSize={pageSize} total={total} hrefFor={(p) => `/portal/updates?page=${p}`} />
+      <Pagination page={page} pageSize={pageSize} total={total} hrefFor={(p) => href(type, p)} />
     </div>
   );
 }

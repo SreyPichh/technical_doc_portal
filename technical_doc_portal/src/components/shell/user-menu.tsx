@@ -34,8 +34,8 @@ export function UserMenu({
     <Dropdown>
       <DropdownTrigger
         className={cn(
-          "flex items-center gap-2 rounded-md px-1.5 py-1 text-sm cursor-pointer",
-          tone === "dark" ? "text-white hover:bg-white/10" : "text-foreground hover:bg-grey-50",
+          "flex min-h-10 items-center gap-2 rounded-md px-1.5 py-1 text-sm cursor-pointer",
+          tone === "dark" ? "text-white hover:bg-white/10 focus-visible:outline-white" : "text-foreground hover:bg-grey-50",
         )}
         data-testid="user-menu"
       >
@@ -47,7 +47,7 @@ export function UserMenu({
         >
           {initials}
         </span>
-        <span className="hidden text-left leading-tight md:block">
+        <span className="hidden text-left leading-tight lg:block">
           <span className="block max-w-40 truncate font-medium">{name}</span>
           <span className={cn("block max-w-40 truncate text-[11px]", tone === "dark" ? "text-white/60" : "text-muted")}>
             {org ?? roleLabel}

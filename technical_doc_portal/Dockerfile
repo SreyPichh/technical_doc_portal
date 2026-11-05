@@ -24,7 +24,7 @@ ENV NODE_ENV=production \
     CHROME_EXECUTABLE_PATH=/usr/bin/chromium
 # Chromium is only used to export portal-authored documents to PDF.
 RUN apt-get update \
- && apt-get install -y --no-install-recommends chromium fonts-noto-core fonts-noto-cjk ca-certificates \
+ && apt-get install -y --no-install-recommends chromium fonts-inter fonts-noto-core fonts-noto-cjk ca-certificates \
  && rm -rf /var/lib/apt/lists/* \
  && groupadd -r app && useradd -r -g app -d /app app \
  && mkdir -p /data/storage && chown -R app:app /data

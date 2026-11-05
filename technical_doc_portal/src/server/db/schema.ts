@@ -102,6 +102,8 @@ export const users = pgTable(
     mustChangePassword: boolean("must_change_password").notNull().default(true),
     emailNotifications: boolean("email_notifications").notNull().default(true),
     lastLoginAt: ts("last_login_at"),
+    /** When the user last opened the notification bell; newer publication events count as unread. */
+    notificationsSeenAt: ts("notifications_seen_at"),
     createdBy: uuid("created_by").references((): AnyPgColumn => users.id, { onDelete: "set null" }),
     createdAt: ts("created_at").notNull().defaultNow(),
     updatedAt: ts("updated_at").notNull().defaultNow(),

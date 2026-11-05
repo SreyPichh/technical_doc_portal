@@ -13,7 +13,7 @@ import { EmptyState, PageHeader } from "@/components/ui/misc";
 import { Table, TD, TH, THead, TR } from "@/components/ui/table";
 import { fmtDateTime } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Downloads & saved documents" };
+export const metadata: Metadata = { title: "My downloads" };
 
 export default async function SavedPage() {
   const user = await requirePermission("portal.view");
@@ -59,7 +59,7 @@ export default async function SavedPage() {
 
   return (
     <div className="space-y-8">
-      <PageHeader title="Downloads / saved documents" description="Documents you have bookmarked, and your recent downloads." />
+      <PageHeader title="My downloads" description="Documents you have saved, and your recent downloads — with a warning when a newer revision is available." />
       <section>
         <h2 className="mb-3 text-lg font-semibold">Saved documents</h2>
         {saved.length ? (

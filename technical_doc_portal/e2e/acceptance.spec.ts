@@ -385,3 +385,33 @@ test("Admin management — dealer account with forced password change, subcatego
   await openPortalDoc(d, "TEC-26-049");
   await expect(d.getByText("Revision R2").first()).toBeVisible();
 });
+
+test("Dealer notifications — bell lists recent publications and clears its unread count once read", async ({ browser }) => {
+  const dealer = await login(browser, DEALER);
+  await dealer.goto("/portal");
+  const bell = dealer.getByTestId("notification-bell");
+  await expect(bell).toHaveAccessibleName(/unread/);
+  await bell.click();
+  const panel = dealer.getByRole("menu");
+  await expect(panel).toContainText("E2E Test Document For Upload");
+  await expect(panel.getByRole("menuitem", { name: "View all updates" })).toBeVisible();
+  await dealer.keyboard.press("Escape");
+  await expect(bell).toHaveAccessibleName("Notifications");
+  // The read state is stored on the server, not just in the page.
+  await expect
+    .poll(async () => {
+      await dealer.reload();
+      return dealer.getByTestId("notification-bell").getAttribute("aria-label");
+    })
+    .toBe("Notifications");
+});
+
+test("Product model filter narrows results and shows a removable filter chip", async ({ browser }) => {
+  const dealer = await login(browser, DEALER);
+  await dealer.goto("/portal/documents");
+  await dealer.getByTestId("filter-model").selectOption({ label: "Z-SG45L" });
+  await expect(dealer.getByTestId("result-count")).toHaveText(/^1 document/);
+  await expect(dealer.getByTestId("document-row")).toContainText("TEC-26-056");
+  await dealer.getByRole("link", { name: "Remove filter: Model Z-SG45L" }).click();
+  await expect(dealer.getByTestId("result-count")).not.toHaveText(/^1 document/);
+});
