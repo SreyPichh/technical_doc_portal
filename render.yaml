@@ -1,0 +1,52 @@
+# Render Blueprint — free test server for the NSK Technical Information Portal.
+# Database and private file storage are on Supabase (free); see
+# technical_doc_portal/README.md → "Free test server (Render + Supabase)".
+services:
+  - type: web
+    name: nsk-tech-portal
+    runtime: docker
+    plan: free
+    region: singapore
+    rootDir: technical_doc_portal
+    dockerfilePath: ./technical_doc_portal/Dockerfile
+    dockerContext: ./technical_doc_portal
+    healthCheckPath: /login
+    autoDeploy: true
+    envVars:
+      # Secrets — Render asks for these when the Blueprint is created.
+      - key: DATABASE_URL
+        sync: false
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_REGION
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: APP_URL
+        sync: false
+      # Fixed settings
+      - key: STORAGE_DRIVER
+        value: s3
+      - key: S3_BUCKET
+        value: nsk-portal
+      - key: S3_FORCE_PATH_STYLE
+        value: "true"
+      - key: DATABASE_POOL_MAX
+        value: "5"
+      # The free instance has 512 MB of memory: no server-side PDF export (Chromium).
+      - key: CHROME_EXECUTABLE_PATH
+        value: "off"
+      - key: NODE_OPTIONS
+        value: --max-old-space-size=320
+      - key: OCR_LANGS
+        value: eng
+      - key: OCR_CACHE_DIR
+        value: /tmp/ocr-cache
+      - key: MAX_UPLOAD_MB
+        value: "50"
+      - key: SESSION_TTL_HOURS
+        value: "12"
+      - key: TZ
+        value: Asia/Phnom_Penh

@@ -7,6 +7,7 @@ import { portalVisibilityCondition } from "@/server/services/access";
 import { renderAuthoredHtml } from "@/server/services/authored-render";
 import { fmtDate } from "@/lib/utils";
 import { PrintTrigger } from "./print-trigger";
+import { NskLogo } from "@/components/shell/nsk-logo";
 
 /** Print-optimised view of an authored document (Print → Save as PDF). */
 export default async function PrintPage({ params, searchParams }: PageProps<"/print/documents/[id]">) {
@@ -34,7 +35,7 @@ export default async function PrintPage({ params, searchParams }: PageProps<"/pr
       <PrintTrigger />
       <div className="mx-auto max-w-[190mm] px-4 py-6 print:p-0">
         <div className="flex items-center justify-between bg-navy px-4 py-2.5 text-white [print-color-adjust:exact]">
-          <span className="text-xl font-bold italic">NSK</span>
+          <NskLogo className="h-7 text-white" />
           <span className="tracking-wide">Technical Information</span>
         </div>
         <p className="mt-3 text-right text-[12px] text-muted">

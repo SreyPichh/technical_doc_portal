@@ -7,6 +7,7 @@ import { env } from "@/server/env";
 import { newKey, storage } from "@/server/storage";
 import type { SessionUser } from "@/server/auth/dal";
 import { normalizeText } from "@/lib/text";
+import { nskLogoSvg } from "@/lib/brand";
 import { logActivity } from "./activity";
 import { extractAuthoredText, renderAuthoredHtml } from "./authored-render";
 import { ServiceError, type DocumentMetadataInput, type RevisionInput } from "./revisions";
@@ -133,8 +134,8 @@ export function authoredPrintHtml(opts: { title: string; number: string; revisio
 <style>
 @page{size:A4;margin:22mm 16mm 18mm}
 body{font-family:"IBM Plex Sans",Arial,Helvetica,sans-serif;color:#1b2433;font-size:10.5pt;line-height:1.55;margin:0}
-.hdr{background:#13285b;color:#fff;padding:10px 16px;display:flex;justify-content:space-between;align-items:center}
-.hdr b{font-style:italic;font-size:18pt;letter-spacing:-.02em}.hdr span{font-size:12pt;letter-spacing:.04em}
+.hdr{background:#132c5b;color:#fff;padding:10px 16px;display:flex;justify-content:space-between;align-items:center}
+.hdr span{font-size:12pt;letter-spacing:.04em}
 .meta{text-align:right;font-size:9pt;color:#5d6b82;margin:10px 0 18px}
 h1{font-size:17pt;margin:.6em 0 .4em;text-align:center;text-decoration:underline}h2{font-size:13pt;margin:1.2em 0 .4em;border-bottom:1px solid #dfe4ec;padding-bottom:2px}h3{font-size:11pt;margin:1em 0 .3em}
 p{margin:.45em 0}ul,ol{padding-left:1.4em}a{color:#1f5fbf}
@@ -144,7 +145,7 @@ figure img{max-width:100%;height:auto}figcaption{font-size:9pt;color:#5d6b82;mar
 hr[data-page-break]{break-after:page;border:0;margin:0}
 .sample{border:1px solid #c8102e;color:#c8102e;padding:4px 8px;font-size:9pt;margin-bottom:10px;display:inline-block}
 </style></head><body>
-<div class="hdr"><b>NSK</b><span>Technical Information</span></div>
+<div class="hdr">${nskLogoSvg({ height: 26 })}<span>Technical Information</span></div>
 <div class="meta">Document No. ${esc(opts.number)} · Revision ${esc(opts.revision)}${opts.date ? ` · ${esc(opts.date)}` : ""}</div>
 <h1>${esc(opts.title)}</h1>
 ${opts.body}

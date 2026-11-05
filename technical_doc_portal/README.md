@@ -171,6 +171,23 @@ tarball; schedule it with cron and copy the output off the server).
 - App: any Node host that keeps a long-running process (needed for background OCR), e.g. a VM, Render, Railway,
   Fly.io, or the Docker image above. Serverless hosts work for everything except long OCR jobs.
 
+### Option C — free test server (Render + Supabase)
+For demos and feedback only. `render.yaml` at the repository root describes the web service.
+- **Supabase (free):** create a project, then in **Storage** create a **private** bucket named `nsk-portal` and,
+  under **Storage → S3 Configuration**, a new access key. Use the **Session pooler** connection string
+  (port 5432, IPv4) with `?sslmode=require` as `DATABASE_URL`.
+- **Load data from your machine:** copy the values into `.env.deploy` (git-ignored), then
+  ```bash
+  npx tsx --env-file=.env.deploy scripts/migrate.ts
+  npx tsx --env-file=.env.deploy --conditions=react-server scripts/seed.ts   # needs ./doc_sample
+  ```
+- **Render (free):** New → Blueprint → pick the repository; enter the secret values when asked. `APP_URL`
+  is the service address, e.g. `https://nsk-tech-portal.onrender.com`.
+- **Limits of the free tier:** the server sleeps after 15 minutes without visits (the next visit takes about a
+  minute); 512 MB of memory, so server-side PDF export of authored documents is off
+  (`CHROME_EXECUTABLE_PATH=off`) and large scanned-PDF OCR jobs may fail; a free Supabase project pauses after
+  a week without activity. E-mail stays off until `RESEND_API_KEY` and `EMAIL_FROM` are added.
+
 ### Production checklist
 - [ ] HTTPS, `COOKIE_SECURE=true`, correct `APP_URL` and `TZ`
 - [ ] Remove or change the seeded test accounts (or never run `db:seed` in production)

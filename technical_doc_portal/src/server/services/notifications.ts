@@ -110,7 +110,7 @@ export async function sendNotificationEmails(notificationId: string, actorId: st
     ["Date", date],
   ];
   const html = `<div style="font-family:Arial,Helvetica,sans-serif;color:#1f2937;max-width:560px">
-  <div style="background:#14275a;color:#fff;padding:14px 20px;font-weight:bold;letter-spacing:.5px">NSK Technical Information Portal</div>
+  <div style="background:#132c5b;color:#fff;padding:14px 20px;font-weight:bold;letter-spacing:.5px">NSK Technical Information Portal</div>
   <div style="padding:20px;border:1px solid #e5e7eb;border-top:0">
   <p style="margin:0 0 14px">${escapeHtml(n.n.message)}</p>
   <table style="border-collapse:collapse;font-size:14px;width:100%">${rows
@@ -119,7 +119,7 @@ export async function sendNotificationEmails(notificationId: string, actorId: st
         `<tr><td style="padding:6px 10px;background:#f3f4f6;width:130px;border:1px solid #e5e7eb">${k}</td><td style="padding:6px 10px;border:1px solid #e5e7eb">${escapeHtml(v)}</td></tr>`,
     )
     .join("")}</table>
-  <p style="margin:20px 0"><a href="${link}" style="background:#14275a;color:#fff;padding:10px 18px;text-decoration:none;border-radius:4px">Open in the portal</a></p>
+  <p style="margin:20px 0"><a href="${link}" style="background:#132c5b;color:#fff;padding:10px 18px;text-decoration:none;border-radius:4px">Open in the portal</a></p>
   <p style="font-size:12px;color:#6b7280;margin:0">Always use the latest approved version from the portal. Sign-in required. You can turn these e-mails off under My Account.</p>
   </div></div>`;
   const text = `${n.n.message}\n\n${rows.map(([k, v]) => `${k}: ${v}`).join("\n")}\n\nOpen in the portal: ${link}`;
