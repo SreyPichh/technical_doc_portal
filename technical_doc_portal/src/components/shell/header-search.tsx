@@ -15,7 +15,7 @@ export function HeaderSearch({ className, id = "header-search" }: { className?: 
         type="search"
         enterKeyHint="search"
         placeholder="Search document no., title, model or order code"
-        className="h-10 w-full rounded-md border border-white/20 bg-white/10 pl-9 pr-11 text-sm text-white placeholder:text-white/60 hover:border-white/35 focus:border-white/70 focus:bg-white/15 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+        className="h-10 w-full rounded-md border border-white/20 bg-white/10 pl-9 pr-11 text-sm text-white placeholder:text-white/60 hover:border-white/35 focus:border-white/70 focus:bg-white/15 focus:outline-none"
       />
       <button
         type="submit"

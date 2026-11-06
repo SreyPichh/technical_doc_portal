@@ -140,7 +140,7 @@ export default async function PortalDashboard() {
                   type="search"
                   enterKeyHint="search"
                   placeholder="Document no., title, model, order code or keyword"
-                  className="h-12 w-full rounded-md border border-border-strong bg-surface pl-11 pr-3 text-[15px] placeholder:text-subtle hover:border-navy-100 focus:border-ring focus:outline-none focus:ring-3 focus:ring-ring/15"
+                  className="h-12 w-full rounded-md border border-border-strong bg-surface pl-11 pr-3 text-[15px] placeholder:text-subtle hover:border-navy-100 focus:border-navy focus:outline-none"
                 />
               </label>
               <button className="inline-flex h-12 items-center gap-2 rounded-md bg-navy px-4 text-sm font-medium text-white hover:bg-navy-hover cursor-pointer sm:px-6">

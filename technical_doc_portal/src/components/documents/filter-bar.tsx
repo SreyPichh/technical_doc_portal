@@ -57,6 +57,7 @@ export function FilterBar({ values, categories, types, languages, models, labelO
   const [showFilters, setShowFilters] = useState(filterCount > 0);
   const [pending, startTransition] = useTransition();
   const go = (url: string) => startTransition(() => router.push(url));
+  const clearAll = () => go(pathname + (extra ? `?${new URLSearchParams(extra)}` : ""));
 
   return (
     <form
@@ -163,15 +164,12 @@ export function FilterBar({ values, categories, types, languages, models, labelO
         </label>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border pt-3">
-        {pending && (
-          <span className="order-last flex w-full items-center gap-1.5 text-[13px] text-muted sm:order-none sm:w-auto" role="status">
-            <LoaderCircle className="size-4 motion-safe:animate-spin" aria-hidden /> Updating results…
-          </span>
-        )}
-        <fieldset className="flex flex-wrap items-center gap-1.5">
+      {/* Bottom row. Phones: status, then sort + layout on their own full-width row, labels aligned.
+          md and up: status on the left, sort / layout / clear on the right of one row. */}
+      <div className="mt-3 flex flex-col gap-3 border-t border-border pt-3 md:flex-row md:items-center md:justify-between">
+        <fieldset className="flex flex-wrap items-center gap-2">
           <legend className="sr-only">Status</legend>
-          <span className="mr-1 text-[13px] text-muted" aria-hidden>
+          <span className="w-16 shrink-0 text-[13px] text-muted md:w-auto" aria-hidden>
             Status
           </span>
           {labelOptions.map((l) => {
@@ -181,7 +179,7 @@ export function FilterBar({ values, categories, types, languages, models, labelO
                 key={l}
                 title={LABEL_HINTS[l]}
                 className={cn(
-                  "inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-full border px-3 text-[12px] font-semibold tracking-wide select-none has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ring",
+                  "inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-full border px-3 text-[12px] font-semibold tracking-wide select-none pointer-coarse:min-h-10 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ring",
                   on ? "border-navy bg-navy text-white" : "border-border-strong text-muted hover:border-navy-100 hover:text-navy",
                 )}
               >
@@ -192,10 +190,21 @@ export function FilterBar({ values, categories, types, languages, models, labelO
             );
           })}
         </fieldset>
-        <div className="ml-auto flex flex-wrap items-center gap-2">
-          <label className="flex items-center gap-2 text-[13px] text-muted">
-            <span className="hidden sm:inline">Sort by</span>
-            <Select name="sort" defaultValue={values.sort ?? ""} onChange={submit} className="h-9 w-auto text-[13px]" aria-label="Sort by">
+
+        <div className="flex items-center gap-2">
+          {pending && (
+            <span className="mr-2 hidden items-center gap-1.5 text-[13px] text-muted md:flex" role="status">
+              <LoaderCircle className="size-4 motion-safe:animate-spin" aria-hidden /> Updating results…
+            </span>
+          )}
+          <label className="flex min-w-0 flex-1 items-center gap-2 md:flex-none">
+            <span className="w-16 shrink-0 text-[13px] text-muted md:w-auto">Sort by</span>
+            <Select
+              name="sort"
+              defaultValue={values.sort ?? ""}
+              onChange={submit}
+              className="h-10 min-w-0 flex-1 text-[13px] md:h-9 md:w-44 md:flex-none"
+            >
               <option value="">{values.q ? "Most relevant" : "Newest first"}</option>
               {values.q && <option value="newest">Newest first</option>}
               <option value="oldest">Oldest first</option>
@@ -204,7 +213,7 @@ export function FilterBar({ values, categories, types, languages, models, labelO
             </Select>
           </label>
           <input type="hidden" name="view" value={values.view === "cards" ? "cards" : ""} />
-          <div className="flex overflow-hidden rounded-md border border-border-strong" role="group" aria-label="Result layout">
+          <div className="flex shrink-0 overflow-hidden rounded-md border border-border-strong" role="group" aria-label="Result layout">
             {(["table", "cards"] as const).map((v) => (
               <button
                 key={v}
@@ -215,7 +224,7 @@ export function FilterBar({ values, categories, types, languages, models, labelO
                   submit();
                 }}
                 className={cn(
-                  "flex h-9 w-9 items-center justify-center cursor-pointer focus-visible:outline-offset-[-2px]",
+                  "flex size-10 items-center justify-center cursor-pointer focus-visible:outline-offset-[-2px] md:size-9",
                   values.view === v ? "bg-navy text-white" : "hover:bg-grey-50",
                 )}
                 aria-label={v === "table" ? "List view" : "Card view"}
@@ -227,11 +236,28 @@ export function FilterBar({ values, categories, types, languages, models, labelO
             ))}
           </div>
           {active && (
-            <Button type="button" variant="ghost" size="sm" className="h-9" onClick={() => go(pathname + (extra ? `?${new URLSearchParams(extra)}` : ""))}>
+            <Button type="button" variant="ghost" size="sm" className="hidden h-9 md:inline-flex" onClick={clearAll}>
               <X /> Clear all
             </Button>
           )}
         </div>
+
+        {(pending || active) && (
+          <div className="flex min-h-6 items-center justify-between gap-3 md:hidden">
+            {pending ? (
+              <span className="flex items-center gap-1.5 text-[13px] text-muted" role="status">
+                <LoaderCircle className="size-4 motion-safe:animate-spin" aria-hidden /> Updating results…
+              </span>
+            ) : (
+              <span />
+            )}
+            {active && (
+              <Button type="button" variant="ghost" size="sm" className="h-10" onClick={clearAll}>
+                <X /> Clear all
+              </Button>
+            )}
+          </div>
+        )}
       </div>
     </form>
   );

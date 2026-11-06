@@ -56,6 +56,8 @@
 
 html {
   -webkit-text-size-adjust: 100%;
+  /* No grey/blue flash when tapping links and buttons on phones. */
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -70,9 +72,28 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
+/* Keyboard focus ring for buttons and links. Kept in the base layer so components can override it. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  /* Text fields show focus with a darker border instead of a blue outline. */
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: none;
+  }
+}
+
+/* iOS zooms the page when a field with text smaller than 16px gets focus, and
+   leaves it zoomed. 16px on touch screens prevents that without disabling pinch-zoom. */
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
 }
 
 /* ---------- PDF.js viewer layers ---------- */

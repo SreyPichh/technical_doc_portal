@@ -8,6 +8,7 @@ import { NavLink } from "@/components/shell/nav-link";
 import { MobileNav } from "@/components/shell/mobile-nav";
 import { HeaderSearch } from "@/components/shell/header-search";
 import { NotificationBell } from "@/components/shell/notification-bell";
+import { PortalFooter } from "@/components/shell/portal-footer";
 
 const NAV = [
   { href: "/portal", label: "Dashboard", exact: true },
@@ -80,12 +81,7 @@ export default async function PortalLayout({ children }: LayoutProps<"/portal">)
       <main id="main" tabIndex={-1} className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 outline-none sm:px-6 sm:py-8">
         {children}
       </main>
-      <footer className="border-t border-border bg-surface">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2 px-4 py-4 text-[13px] text-muted sm:px-6">
-          <span>NSK Technical Information Portal — for authorised NSK dealers and distributors.</span>
-          <span>Official documents are provided exactly as issued by NSK HQ.</span>
-        </div>
-      </footer>
+      <PortalFooter />
     </div>
   );
 }
