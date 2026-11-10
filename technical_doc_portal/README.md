@@ -195,6 +195,29 @@ For demos and feedback only. `render.yaml` at the repository root describes the 
 - [ ] Resend domain verified and `EMAIL_FROM` set, then enable notifications in **Settings**
 - [ ] Define dealer **regions** in Settings before creating dealer accounts
 
+### Bulk import from an Excel list
+Imports a folder of official PDFs using an Excel list (columns *Tech Info No.*, *E/J*, *Title*, *Release date*,
+*Type*, *Product*; a row whose title is `R1`, `R2`, … is a later revision of the row above it). Macros in `.xlsm`
+files are never run — only cell values are read.
+```bash
+# Preview: checks every PDF and prints the plan. Nothing is changed.
+npm run import:ti -- --excel "Technical Information List.xlsm" --sheet NAS --pdfs ./2025 --pdfs ./2026
+# Import (add --include-unlisted to also import PDFs that are not in the sheet)
+npm run import:ti -- --excel "…" --pdfs ./2025 --pdfs ./2026 --commit
+# Same, into the test server (Supabase): add --env-file .env.deploy
+```
+- Files are matched by name (`…TEC-25-048_EN-R1.pdf` → TEC-25-048, R1; no suffix → R0), stored unchanged and
+  indexed for search.
+- Each revision is published with its **release date as the publication date**, oldest first, so revision history
+  and NEW/UPDATED labels match the real timeline. No e-mails are sent.
+- *Type* becomes the document type (missing types are created); *Product* becomes the product models. The sheet
+  has no category, so documents go to `--category` (default *General Technical Information*) unless the sheet
+  has a *Category* column; move them afterwards with **Edit metadata** if needed.
+- **Rows highlighted in yellow are not imported**, and neither are their PDFs (a yellow first row leaves out the
+  whole document, including its revisions). The preview lists them, and flags any that are already in the portal.
+  Use `--include-highlighted` to import them anyway.
+- Documents and revisions that already exist are skipped, so the import is safe to re-run with new files.
+
 ---
 
 ## 6. Administrator setup

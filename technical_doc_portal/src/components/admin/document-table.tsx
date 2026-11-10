@@ -29,6 +29,7 @@ export function AdminDocumentTable({
         <THead>
           <tr>
             <TH>Document</TH>
+            <TH>Type</TH>
             <TH>Category</TH>
             <TH>Revision</TH>
             <TH>Last updated</TH>
@@ -50,6 +51,7 @@ export function AdminDocumentTable({
                   {d.title}
                 </Link>
               </TD>
+              <TD className="min-w-[8rem] text-[13px]">{d.documentType}</TD>
               <TD className="text-[13px] text-muted">
                 {d.categoryName}
                 {d.subcategoryName && <span className="block text-[12px] text-subtle">{d.subcategoryName}</span>}

@@ -1,6 +1,8 @@
 import "server-only";
 import { after } from "next/server";
 import { and, desc, eq, inArray, isNull, lt, max, sql } from "drizzle-orm";
+import { can } from "@/lib/permissions";
+import { slugify } from "@/lib/text";
 import { db, schema, type Tx } from "@/server/db";
 import { storage, newKey } from "@/server/storage";
 import { analyzePdf } from "@/server/pdf/analyze";
@@ -19,7 +21,12 @@ export class ServiceError extends Error {}
 /* Staged uploads                                                      */
 /* ------------------------------------------------------------------ */
 
-export async function stageUpload(buf: Buffer, originalFilename: string, user: SessionUser) {
+export async function stageUpload(
+  buf: Buffer,
+  originalFilename: string,
+  user: SessionUser,
+  opts: { purgeStale?: boolean } = {},
+) {
   const analysis = await analyzePdf(buf);
   const key = newKey("uploads", "pdf");
   await storage.put(key, buf, "application/pdf");
@@ -44,8 +51,8 @@ export async function stageUpload(buf: Buffer, originalFilename: string, user: S
     .where(eq(r.sha256, analysis.sha256))
     .limit(3);
 
-  // Opportunistic clean-up of abandoned staged uploads (> 2 days old).
-  after(() => purgeStaleUploads().catch(() => {}));
+  // Opportunistic clean-up of abandoned staged uploads (> 2 days old). Only inside a web request.
+  if (opts.purgeStale !== false) after(() => purgeStaleUploads().catch(() => {}));
 
   return {
     uploadId: row.id,
@@ -91,11 +98,145 @@ export type DocumentMetadataInput = {
   subcategoryId: string | null;
   productModels: string[];
   documentTypeId: string;
+  /** Set when the administrator chose "Add a new type…": the type is created (or re-used) on save. */
+  newDocumentType?: string | null;
+  /** Set when the administrator chose "Add a new category…": a main category is created (or re-used) on save. */
+  newCategory?: string | null;
+  /** Set when the administrator chose "Add a new subcategory…": created (or re-used) under the chosen category. */
+  newSubcategory?: string | null;
   language: string;
   source: string;
   visibility: "all_dealers" | "regions";
   regionIds: string[];
 };
+
+type ChoiceFields = {
+  documentTypeId: string;
+  newDocumentType?: string;
+  categoryId: string;
+  newCategory?: string;
+  subcategoryId: string | null;
+  newSubcategory?: string;
+};
+
+/** Turns the "__new__" choice of the type/category/subcategory drop-downs into the name to create on save. */
+export function fromNewChoiceFields(v: ChoiceFields) {
+  const out: Pick<DocumentMetadataInput, "documentTypeId" | "newDocumentType" | "categoryId" | "newCategory" | "subcategoryId" | "newSubcategory"> = {
+    documentTypeId: v.documentTypeId,
+    categoryId: v.categoryId,
+    subcategoryId: v.subcategoryId,
+  };
+  const need = (name: string | undefined, what: string) => {
+    if (!name || name.length < 2) throw new ServiceError(`Enter the name of the new ${what}.`);
+    return name;
+  };
+  if (v.documentTypeId === "__new__") Object.assign(out, { documentTypeId: "", newDocumentType: need(v.newDocumentType, "document type") });
+  if (v.categoryId === "__new__") Object.assign(out, { categoryId: "", newCategory: need(v.newCategory, "category"), subcategoryId: null });
+  if (v.subcategoryId === "__new__") Object.assign(out, { subcategoryId: null, newSubcategory: need(v.newSubcategory, "subcategory") });
+  return out;
+}
+
+/**
+ * Returns the metadata with real document type and category ids. A name typed in "Add a new type…",
+ * "Add a new category…" or "Add a new subcategory…" re-uses an existing entry with the same name (any letter case, re-activating
+ * it if needed), otherwise it is created — inside the caller's transaction, so nothing is created
+ * when the save fails.
+ */
+export async function resolveNewChoices<T extends DocumentMetadataInput>(tx: Tx, meta: T, user: SessionUser) {
+  const { newDocumentType, newCategory, newSubcategory, ...rest } = meta;
+  const clean = (v?: string | null) => v?.replace(/\s+/g, " ").trim() ?? "";
+
+  const typeName = clean(newDocumentType);
+  if (typeName) {
+    if (!can(user.role, "settings.manage")) throw new ServiceError("You are not allowed to add document types.");
+    if (typeName.length < 2 || typeName.length > 80) throw new ServiceError("Enter a document type name (2–80 characters).");
+    const dt = schema.documentTypes;
+    const [existing] = await tx.select().from(dt).where(sql`lower(${dt.name}) = lower(${typeName})`);
+    if (existing) {
+      if (!existing.active) await tx.update(dt).set({ active: true }).where(eq(dt.id, existing.id));
+      rest.documentTypeId = existing.id;
+    } else {
+      const [{ maxOrder }] = await tx.select({ maxOrder: sql<number>`coalesce(max(${dt.displayOrder}), 0)::int` }).from(dt);
+      const [created] = await tx.insert(dt).values({ name: typeName, displayOrder: maxOrder + 1 }).returning();
+      await logActivity(
+        {
+          userId: user.id,
+          action: "document_type.changed",
+          entityType: "document_type",
+          entityId: created.id,
+          description: `Added document type “${typeName}” (while saving ${rest.documentNumber})`,
+        },
+        tx,
+      );
+      rest.documentTypeId = created.id;
+    }
+  } else {
+    const [type] = await tx.select({ id: schema.documentTypes.id }).from(schema.documentTypes).where(eq(schema.documentTypes.id, rest.documentTypeId));
+    if (!type) throw new ServiceError("Choose a document type.");
+  }
+
+  const categoryName = clean(newCategory);
+  if (categoryName) {
+    if (!can(user.role, "categories.manage")) throw new ServiceError("You are not allowed to add categories.");
+    if (categoryName.length < 2 || categoryName.length > 80) throw new ServiceError("Enter a category name (2–80 characters).");
+    const c = schema.categories;
+    const [existing] = await tx.select().from(c).where(and(isNull(c.parentId), sql`lower(${c.name}) = lower(${categoryName})`));
+    if (existing) {
+      if (existing.status !== "active") await tx.update(c).set({ status: "active", updatedAt: new Date() }).where(eq(c.id, existing.id));
+      rest.categoryId = existing.id;
+    } else {
+      const [{ next }] = await tx.select({ next: sql<number>`coalesce(max(${c.displayOrder}), -1)::int + 1` }).from(c).where(isNull(c.parentId));
+      const base = slugify(categoryName) || "category";
+      let slug = base;
+      for (let i = 2; (await tx.select({ id: c.id }).from(c).where(eq(c.slug, slug))).length; i++) slug = `${base}-${i}`;
+      const [created] = await tx.insert(c).values({ name: categoryName, slug, icon: "folder", displayOrder: next }).returning();
+      await logActivity(
+        {
+          userId: user.id,
+          action: "category.created",
+          entityType: "category",
+          entityId: created.id,
+          description: `Created category “${categoryName}” (while saving ${rest.documentNumber})`,
+        },
+        tx,
+      );
+      rest.categoryId = created.id;
+    }
+    rest.subcategoryId = null; // a category added here has no series yet (unless one is added below)
+  }
+
+  const subName = clean(newSubcategory);
+  if (subName) {
+    if (!can(user.role, "categories.manage")) throw new ServiceError("You are not allowed to add subcategories.");
+    if (subName.length < 2 || subName.length > 80) throw new ServiceError("Enter a subcategory name (2–80 characters).");
+    const c = schema.categories;
+    const [parent] = await tx.select().from(c).where(eq(c.id, rest.categoryId));
+    if (!parent || parent.parentId) throw new ServiceError("Please choose a valid main category.");
+    const [existing] = await tx.select().from(c).where(and(eq(c.parentId, parent.id), sql`lower(${c.name}) = lower(${subName})`));
+    if (existing) {
+      if (existing.status !== "active") await tx.update(c).set({ status: "active", updatedAt: new Date() }).where(eq(c.id, existing.id));
+      rest.subcategoryId = existing.id;
+    } else {
+      const [{ next }] = await tx.select({ next: sql<number>`coalesce(max(${c.displayOrder}), -1)::int + 1` }).from(c).where(eq(c.parentId, parent.id));
+      const base = slugify(`${parent.name}-${subName}`) || "subcategory";
+      let slug = base;
+      for (let i = 2; (await tx.select({ id: c.id }).from(c).where(eq(c.slug, slug))).length; i++) slug = `${base}-${i}`;
+      const [created] = await tx.insert(c).values({ name: subName, slug, parentId: parent.id, icon: null, displayOrder: next }).returning();
+      await logActivity(
+        {
+          userId: user.id,
+          action: "category.created",
+          entityType: "category",
+          entityId: created.id,
+          description: `Created subcategory “${subName}” under “${parent.name}” (while saving ${rest.documentNumber})`,
+        },
+        tx,
+      );
+      rest.subcategoryId = created.id;
+    }
+  }
+  return rest;
+}
 
 export type RevisionInput = {
   revisionNumber: string;
@@ -132,14 +273,22 @@ async function setRegions(tx: Tx, documentId: string, visibility: "all_dealers" 
 }
 
 export async function createDocumentFromUpload(
-  input: { uploadId: string; meta: DocumentMetadataInput; revision: RevisionInput; publish: boolean; notify: boolean },
+  input: {
+    uploadId: string;
+    meta: DocumentMetadataInput;
+    revision: RevisionInput;
+    publish: boolean;
+    notify: boolean;
+    /** Bulk import only: record the publication on this date (e.g. the official release date). */
+    publishedAt?: Date;
+  },
   user: SessionUser,
 ) {
   const result = await db.transaction(async (tx) => {
-    await assertCategoryPair(tx, input.meta.categoryId, input.meta.subcategoryId);
     await assertUniqueNumber(tx, input.meta.documentNumber);
+    const { regionIds, ...meta } = await resolveNewChoices(tx, input.meta, user);
+    await assertCategoryPair(tx, meta.categoryId, meta.subcategoryId);
     const upload = await consumeUpload(tx, input.uploadId, user);
-    const { regionIds, ...meta } = input.meta;
     const [doc] = await tx
       .insert(d)
       .values({ ...meta, kind: "uploaded_pdf", status: "draft", createdBy: user.id })
@@ -178,7 +327,7 @@ export async function createDocumentFromUpload(
       tx,
     );
     let notificationId: string | null = null;
-    if (input.publish) notificationId = await publishInTx(tx, rev.id, user);
+    if (input.publish) notificationId = await publishInTx(tx, rev.id, user, input.publishedAt);
     return { documentId: doc.id, revisionId: rev.id, notificationId };
   });
   if (result.notificationId && input.notify) scheduleEmails(result.notificationId, user.id);
@@ -186,7 +335,15 @@ export async function createDocumentFromUpload(
 }
 
 export async function addRevisionFromUpload(
-  input: { documentId: string; uploadId: string; revision: RevisionInput; publish: boolean; notify: boolean },
+  input: {
+    documentId: string;
+    uploadId: string;
+    revision: RevisionInput;
+    publish: boolean;
+    notify: boolean;
+    /** Bulk import only: record the publication on this date (e.g. the official release date). */
+    publishedAt?: Date;
+  },
   user: SessionUser,
 ) {
   const result = await db.transaction(async (tx) => {
@@ -237,7 +394,7 @@ export async function addRevisionFromUpload(
       tx,
     );
     let notificationId: string | null = null;
-    if (input.publish) notificationId = await publishInTx(tx, rev.id, user);
+    if (input.publish) notificationId = await publishInTx(tx, rev.id, user, input.publishedAt);
     return { documentId: doc.id, revisionId: rev.id, notificationId };
   });
   if (result.notificationId && input.notify) scheduleEmails(result.notificationId, user.id);
@@ -261,13 +418,14 @@ async function assertRevisionNumberFree(tx: Tx, documentId: string, revisionNumb
  * Approves a draft revision and makes it the dealer-facing current revision.
  * The previously published revision is kept (marked superseded) — never overwritten.
  */
-async function publishInTx(tx: Tx, revisionId: string, user: SessionUser) {
+async function publishInTx(tx: Tx, revisionId: string, user: SessionUser, effectiveDate?: Date) {
   const [rev] = await tx.select().from(r).where(eq(r.id, revisionId)).for("update");
   if (!rev) throw new ServiceError("Revision not found.");
   if (rev.approvalStatus !== "draft") throw new ServiceError(`Revision ${rev.revisionNumber} is not awaiting approval.`);
   if (!rev.fileKey) throw new ServiceError("This revision has no PDF file yet.");
   const [doc] = await tx.select().from(d).where(eq(d.id, rev.documentId)).for("update");
-  const now = new Date();
+  // `now` is the publication date shown to dealers: today, or for a bulk import the release date.
+  const now = effectiveDate ?? new Date();
 
   // Supersede the previous published revision (if any) — the file and record are preserved.
   await tx
@@ -287,10 +445,11 @@ async function publishInTx(tx: Tx, revisionId: string, user: SessionUser) {
       lastPublishEvent: isFirstPublication ? "new" : "updated",
       statusChangedAt: now,
       statusReason: null,
-      updatedAt: now,
+      updatedAt: new Date(),
     })
     .where(eq(d.id, doc.id));
   await rebuildSearchText(tx, doc.id);
+  const importNote = effectiveDate ? ` — bulk import, publication date set to ${effectiveDate.toISOString().slice(0, 10)}` : "";
   await logActivity(
     {
       userId: user.id,
@@ -298,9 +457,10 @@ async function publishInTx(tx: Tx, revisionId: string, user: SessionUser) {
       documentId: doc.id,
       entityType: "revision",
       entityId: rev.id,
-      description: isFirstPublication
-        ? `Published ${doc.documentNumber} ${rev.revisionNumber} (first publication — labelled NEW)`
-        : `Published ${doc.documentNumber} ${rev.revisionNumber} as the current revision (labelled UPDATED)`,
+      description:
+        (isFirstPublication
+          ? `Published ${doc.documentNumber} ${rev.revisionNumber} (first publication — labelled NEW)`
+          : `Published ${doc.documentNumber} ${rev.revisionNumber} as the current revision (labelled UPDATED)`) + importNote,
     },
     tx,
   );
@@ -309,6 +469,7 @@ async function publishInTx(tx: Tx, revisionId: string, user: SessionUser) {
     revisionId: rev.id,
     type: isFirstPublication ? "new" : "updated",
     userId: user.id,
+    createdAt: effectiveDate,
   });
 }
 
@@ -473,8 +634,9 @@ export async function restoreRevision(revisionId: string, newRevisionNumber: str
 /* Metadata & lifecycle                                                */
 /* ------------------------------------------------------------------ */
 
-export async function updateDocumentMetadata(documentId: string, meta: DocumentMetadataInput, user: SessionUser) {
+export async function updateDocumentMetadata(documentId: string, input: DocumentMetadataInput, user: SessionUser) {
   await db.transaction(async (tx) => {
+    const meta = await resolveNewChoices(tx, input, user);
     const [doc] = await tx.select().from(d).where(eq(d.id, documentId)).for("update");
     if (!doc) throw new ServiceError("Document not found.");
     await assertCategoryPair(tx, meta.categoryId, meta.subcategoryId);

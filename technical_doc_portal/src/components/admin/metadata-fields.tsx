@@ -25,10 +25,87 @@ export type MetadataDefaults = {
   regionIds?: string[];
 };
 
+const ADD_NEW = "__new__";
+const NEW_NAME_FIELD = { documentTypeId: "newDocumentType", categoryId: "newCategory", subcategoryId: "newSubcategory" } as const;
+
+/**
+ * A drop-down of existing entries plus "+ Add a new …". Choosing it shows a name field; the entry is
+ * created when the form is saved (an existing entry with the same name is re-used instead).
+ */
+function SelectOrAdd({
+  id,
+  label,
+  noun,
+  options,
+  value,
+  onChange,
+  placeholder,
+  example,
+  plural = `${noun}s`,
+  required = true,
+  disabled = false,
+}: {
+  id: keyof typeof NEW_NAME_FIELD;
+  label: string;
+  noun: string;
+  plural?: string;
+  options: (Opt & { suffix?: string })[];
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  example: string;
+  required?: boolean;
+  disabled?: boolean;
+}) {
+  const newId = NEW_NAME_FIELD[id];
+  const [name, setName] = useState("");
+  // A required list with nothing in it goes straight to "add new".
+  const adding = !disabled && (value === ADD_NEW || (required && !options.length));
+  const match = options.find((o) => o.name.toLowerCase() === name.replace(/\s+/g, " ").trim().toLowerCase());
+  return (
+    <div className="flex flex-col gap-2">
+      <Field label={label} required={required} htmlFor={id}>
+        <Select id={id} name={id} value={adding ? ADD_NEW : value} onChange={(e) => onChange(e.target.value)} required={required} disabled={disabled}>
+          {placeholder && <option value="">{placeholder}</option>}
+          {options.map((o) => (
+            <option key={o.id} value={o.id}>
+              {o.name}
+              {o.suffix}
+            </option>
+          ))}
+          <option value={ADD_NEW}>+ Add a new {noun}…</option>
+        </Select>
+      </Field>
+      {adding && (
+        <Field
+          label={`New ${noun}`}
+          required
+          htmlFor={newId}
+          hint={match ? `“${match.name}” already exists — it will be used.` : `Added to the list of ${plural} when you save.`}
+        >
+          <Input
+            id={newId}
+            name={newId}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            minLength={2}
+            maxLength={80}
+            autoFocus={options.length > 0 || !required}
+            placeholder={`e.g. ${example}`}
+          />
+        </Field>
+      )}
+    </div>
+  );
+}
+
 const BASE_LANGUAGES = ["English", "Japanese", "German", "French", "Spanish", "Chinese", "Korean"];
 
 export function MetadataFields({ options, defaults = {} }: { options: MetadataOptions; defaults?: MetadataDefaults }) {
   const [categoryId, setCategoryId] = useState(defaults.categoryId ?? "");
+  const [subcategoryId, setSubcategoryId] = useState(defaults.subcategoryId ?? "");
+  const [typeId, setTypeId] = useState(defaults.documentTypeId ?? options.types[0]?.id ?? "");
   const [visibility, setVisibility] = useState(defaults.visibility ?? "all_dealers");
   const subs = options.categories.find((c) => c.id === categoryId)?.children ?? [];
   const languages = [...new Set([...BASE_LANGUAGES, ...options.languages])];
@@ -41,43 +118,35 @@ export function MetadataFields({ options, defaults = {} }: { options: MetadataOp
       <Field label="Document number" required htmlFor="documentNumber" hint="Without language/revision suffix, e.g. TEC-26-049">
         <Input id="documentNumber" name="documentNumber" defaultValue={defaults.documentNumber} required maxLength={60} className="font-mono" />
       </Field>
-      <Field label="Document type" required htmlFor="documentTypeId">
-        <Select id="documentTypeId" name="documentTypeId" defaultValue={defaults.documentTypeId ?? options.types[0]?.id} required>
-          {options.types.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.name}
-            </option>
-          ))}
-        </Select>
-      </Field>
-      <Field label="Category" required htmlFor="categoryId">
-        <Select
-          id="categoryId"
-          name="categoryId"
-          value={categoryId}
-          onChange={(e) => setCategoryId(e.target.value)}
-          required
-        >
-          <option value="">Choose a category…</option>
-          {options.categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-              {c.status === "inactive" ? " (inactive)" : ""}
-            </option>
-          ))}
-        </Select>
-      </Field>
-      <Field label="Subcategory / product series" htmlFor="subcategoryId">
-        <Select id="subcategoryId" name="subcategoryId" defaultValue={defaults.subcategoryId ?? ""} key={categoryId} disabled={!subs.length}>
-          <option value="">{subs.length ? "None" : "No series in this category"}</option>
-          {subs.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-              {s.status === "inactive" ? " (inactive)" : ""}
-            </option>
-          ))}
-        </Select>
-      </Field>
+      <SelectOrAdd id="documentTypeId" label="Document type" noun="type" options={options.types} value={typeId} onChange={setTypeId} example="Design Change" />
+      <SelectOrAdd
+        id="categoryId"
+        label="Category"
+        noun="category"
+        options={options.categories.map((c) => ({ id: c.id, name: c.name, suffix: c.status === "inactive" ? " (inactive)" : "" }))}
+        value={categoryId}
+        onChange={(v) => {
+          setCategoryId(v);
+          setSubcategoryId("");
+        }}
+        placeholder="Choose a category…"
+        example="Endodontics"
+        plural="categories"
+      />
+      <SelectOrAdd
+        key={categoryId}
+        id="subcategoryId"
+        label="Subcategory / product series"
+        noun="subcategory"
+        plural="subcategories"
+        required={false}
+        disabled={!categoryId}
+        options={subs.map((c) => ({ id: c.id, name: c.name, suffix: c.status === "inactive" ? " (inactive)" : "" }))}
+        value={subcategoryId}
+        onChange={setSubcategoryId}
+        placeholder={categoryId ? "None" : "Choose a category first"}
+        example="Surgic Pro2"
+      />
       <Field label="Product models" htmlFor="productModels" hint="Comma-separated. Used for search and shown to dealers." className="md:col-span-2">
         <Input id="productModels" name="productModels" defaultValue={defaults.productModels?.join(", ")} placeholder="e.g. Z-SG45L, C1107022" />
       </Field>

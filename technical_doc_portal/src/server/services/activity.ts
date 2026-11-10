@@ -7,6 +7,7 @@ export type ActivityAction =
   | "auth.login_failed"
   | "auth.password_changed"
   | "document.created"
+  | "document.bulk_import"
   | "document.metadata_updated"
   | "document.published"
   | "document.unpublished"

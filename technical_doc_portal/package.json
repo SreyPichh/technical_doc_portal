@@ -12,6 +12,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.ts",
     "db:seed": "tsx --conditions=react-server scripts/seed.ts",
+    "import:ti": "tsx --conditions=react-server scripts/import-technical-info.ts",
     "db:reset": "tsx scripts/migrate.ts && tsx --conditions=react-server scripts/seed.ts --reset",
     "user:create": "tsx --conditions=react-server scripts/create-user.ts",
     "test:e2e": "playwright test"
@@ -33,6 +34,7 @@
     "date-fns": "^4.4.0",
     "dotenv": "^18.0.9",
     "drizzle-orm": "^0.45.4",
+    "exceljs": "^4.4.0",
     "lucide-react": "^1.68.0",
     "next": "16.4.5",
     "pdfjs-dist": "^5.7.284",

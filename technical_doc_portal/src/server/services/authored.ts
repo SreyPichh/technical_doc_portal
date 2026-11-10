@@ -10,7 +10,7 @@ import { normalizeText } from "@/lib/text";
 import { nskLogoSvg } from "@/lib/brand";
 import { logActivity } from "./activity";
 import { extractAuthoredText, renderAuthoredHtml } from "./authored-render";
-import { ServiceError, type DocumentMetadataInput, type RevisionInput } from "./revisions";
+import { resolveNewChoices, ServiceError, type DocumentMetadataInput, type RevisionInput } from "./revisions";
 
 const d = schema.documents;
 const r = schema.documentRevisions;
@@ -36,7 +36,7 @@ export async function createAuthoredDocument(meta: DocumentMetadataInput, rev: R
   return db.transaction(async (tx) => {
     const dup = await tx.select({ id: d.id }).from(d).where(eq(d.documentNumber, meta.documentNumber));
     if (dup.length) throw new ServiceError(`Document number ${meta.documentNumber} already exists.`);
-    const { regionIds, ...fields } = meta;
+    const { regionIds, ...fields } = await resolveNewChoices(tx, meta, user);
     const [doc] = await tx.insert(d).values({ ...fields, kind: "authored", status: "draft", createdBy: user.id }).returning();
     if (meta.visibility === "regions" && regionIds.length)
       await tx.insert(schema.documentRegions).values(regionIds.map((regionId) => ({ documentId: doc.id, regionId })));

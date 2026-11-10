@@ -5,17 +5,20 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { assertPermission, AuthError } from "@/server/auth/dal";
 import { createAuthoredDocument, saveAuthoredDraft } from "@/server/services/authored";
-import { ServiceError } from "@/server/services/revisions";
+import { fromNewChoiceFields, ServiceError } from "@/server/services/revisions";
 import type { ActionState } from "./types";
 
 const metaSchema = z.object({
   title: z.string().trim().min(3).max(300),
   documentNumber: z.string().trim().min(2).max(60),
   description: z.string().trim().max(2000).optional().transform((v) => v || null),
-  categoryId: z.string().uuid({ message: "Choose a category." }),
-  subcategoryId: z.string().optional().transform((v) => v || null).pipe(z.string().uuid().nullable()),
+  categoryId: z.union([z.string().uuid(), z.literal("__new__")], { message: "Choose a category." }),
+  newCategory: z.string().trim().max(80).optional(),
+  subcategoryId: z.string().optional().transform((v) => v || null).pipe(z.union([z.string().uuid(), z.literal("__new__")]).nullable()),
+  newSubcategory: z.string().trim().max(80).optional(),
   productModels: z.string().optional().transform((v) => (v ?? "").split(/[,;\n]/).map((s) => s.trim()).filter(Boolean)),
-  documentTypeId: z.string().uuid({ message: "Choose a document type." }),
+  documentTypeId: z.union([z.string().uuid(), z.literal("__new__")], { message: "Choose a document type." }),
+  newDocumentType: z.string().trim().max(80).optional(),
   language: z.string().trim().min(2).max(40),
   source: z.string().trim().min(2).max(120),
   visibility: z.enum(["all_dealers", "regions"]),
@@ -49,12 +52,15 @@ export async function createAuthoredAction(_prev: ActionState, fd: FormData): Pr
     const rv = revSchema.safeParse(Object.fromEntries(fd));
     if (!rv.success) return { error: rv.error.issues[0].message };
     const regionIds = fd.getAll("regionIds").map(String).filter((x) => /^[0-9a-f-]{36}$/i.test(x));
-    const res = await createAuthoredDocument({ ...m.data, regionIds }, rv.data, parseContent(fd), user);
+    const { documentTypeId, newDocumentType, categoryId, newCategory, subcategoryId, newSubcategory, ...meta } = m.data;
+    const choices = fromNewChoiceFields({ documentTypeId, newDocumentType, categoryId, newCategory, subcategoryId, newSubcategory });
+    const res = await createAuthoredDocument({ ...meta, ...choices, regionIds }, rv.data, parseContent(fd), user);
     target = `/admin/authored/${res.documentId}?saved=1`;
   } catch (e) {
     return toState(e);
   }
   revalidatePath("/admin", "layout");
+  revalidatePath("/portal", "layout"); // a category may have been added
   redirect(target);
 }
 

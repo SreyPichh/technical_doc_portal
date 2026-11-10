@@ -10,7 +10,7 @@ type EventType = "new" | "updated" | "withdrawn" | "archived" | "restored";
 /** Records a publication event (shown in Latest Updates). Call inside the publishing transaction. */
 export async function recordPublicationEvent(
   tx: Tx,
-  e: { documentId: string; revisionId?: string | null; type: EventType; userId: string },
+  e: { documentId: string; revisionId?: string | null; type: EventType; userId: string; createdAt?: Date },
 ) {
   const [doc] = await tx
     .select({ title: schema.documents.title, number: schema.documents.documentNumber })
@@ -40,6 +40,7 @@ export async function recordPublicationEvent(
       title: `${doc.number} — ${doc.title}`,
       message: rev ? `${verb} (Revision ${rev.n}).` : `${verb}.`,
       createdBy: e.userId,
+      ...(e.createdAt ? { createdAt: e.createdAt } : {}),
     })
     .returning({ id: schema.notifications.id });
   return n.id;

@@ -474,3 +474,55 @@ test("Sign-in states — empty fields, invalid email, wrong password, inactive a
   await signIn.click();
   await page.waitForURL(/\/portal/);
 });
+
+test("Document type, category and subcategory — add new ones while uploading, re-use them, and see them in the documents table", async ({ browser }) => {
+  const admin = await login(browser, ADMIN);
+  const upload = async (number: string, typeName: string, categoryName: string, subName: string) => {
+    await admin.goto("/admin/upload");
+    await admin.getByTestId("mode-new").click();
+    await admin.getByTestId("file-input").setInputFiles("e2e/fixtures/TEST-NEW-DOC.pdf");
+    await admin.getByLabel("Document number").fill(number);
+    await admin.locator("#documentTypeId").selectOption({ label: "+ Add a new type…" });
+    await admin.getByLabel("New type").fill(typeName);
+    await admin.locator("#categoryId").selectOption({ label: "+ Add a new category…" });
+    await admin.getByLabel("New category").fill(categoryName);
+    await admin.locator("#subcategoryId").selectOption({ label: "+ Add a new subcategory…" });
+    await admin.getByLabel("New subcategory").fill(subName);
+  };
+
+  await upload("TEST-TYPE-001", "Labeling  Change", "Endodontics", "Rotary Files");
+  await expect(admin.getByText("Added to the list of types when you save.")).toBeVisible();
+  await expect(admin.getByText("Added to the list of categories when you save.")).toBeVisible();
+  await expect(admin.getByText("Added to the list of subcategories when you save.")).toBeVisible();
+  await admin.getByTestId("save-draft").click();
+  await admin.waitForURL(/created=/);
+
+  // Typing the same names again (any case) re-uses them instead of creating copies.
+  await upload("TEST-TYPE-002", "labeling change", "ENDODONTICS", "rotary files");
+  await expect(admin.getByText("“Labeling Change” already exists — it will be used.")).toBeVisible();
+  await expect(admin.getByText("“Endodontics” already exists — it will be used.")).toBeVisible();
+  await admin.getByTestId("save-draft").click();
+  await admin.waitForURL(/created=/);
+
+  // The drop-downs now offer each of them exactly once, and the subcategory hint works too.
+  await admin.goto("/admin/upload");
+  await admin.getByTestId("mode-new").click();
+  await admin.getByTestId("file-input").setInputFiles("e2e/fixtures/TEST-NEW-DOC.pdf");
+  await expect(admin.locator("#documentTypeId option", { hasText: /^Labeling Change$/ })).toHaveCount(1);
+  await expect(admin.locator("#categoryId option", { hasText: /^Endodontics$/ })).toHaveCount(1);
+  await admin.locator("#categoryId").selectOption({ label: "Endodontics" });
+  await expect(admin.locator("#subcategoryId option", { hasText: /^Rotary Files$/ })).toHaveCount(1);
+  await admin.locator("#subcategoryId").selectOption({ label: "+ Add a new subcategory…" });
+  await admin.getByLabel("New subcategory").fill("ROTARY files");
+  await expect(admin.getByText("“Rotary Files” already exists — it will be used.")).toBeVisible();
+
+  await admin.goto("/admin/documents?q=TEST-TYPE");
+  const rows = admin.getByTestId("admin-document-row");
+  await expect(rows).toHaveCount(2);
+  for (const row of await rows.all()) {
+    await expect(row.locator("td").nth(1)).toHaveText("Labeling Change");
+    await expect(row.locator("td").nth(2)).toContainText("Endodontics");
+    await expect(row.locator("td").nth(2)).toContainText("Rotary Files");
+  }
+  await expect(admin.getByRole("columnheader", { name: "Type" })).toBeVisible();
+});

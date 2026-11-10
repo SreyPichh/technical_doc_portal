@@ -9,6 +9,7 @@ import {
   changeDocumentStatus,
   correctPublishedRevision,
   createDocumentFromUpload,
+  fromNewChoiceFields,
   publishRevision,
   rejectRevision,
   restoreRevision,
@@ -40,12 +41,15 @@ const metadataSchema = z.object({
     .max(60)
     .regex(/^[A-Za-z0-9][A-Za-z0-9\-_./ ]*$/, "Use letters, numbers and - _ . / only."),
   description: optText(2000),
-  categoryId: uuid.describe("category"),
+  // A category id, or "__new__" together with the name typed in newCategory.
+  categoryId: z.union([uuid, z.literal("__new__")]),
+  newCategory: z.string().trim().max(80).optional(),
   subcategoryId: z
     .string()
     .optional()
     .transform((v) => (v ? v : null))
-    .pipe(uuid.nullable()),
+    .pipe(z.union([uuid, z.literal("__new__")]).nullable()),
+  newSubcategory: z.string().trim().max(80).optional(),
   productModels: z
     .string()
     .optional()
@@ -56,7 +60,9 @@ const metadataSchema = z.object({
         .filter(Boolean)
         .slice(0, 100),
     ),
-  documentTypeId: uuid,
+  // A type id, or "__new__" together with the name typed in newDocumentType.
+  documentTypeId: z.union([uuid, z.literal("__new__")]),
+  newDocumentType: z.string().trim().max(80).optional(),
   language: z.string().trim().min(2).max(40),
   source: z.string().trim().min(2).max(120),
   visibility: z.enum(["all_dealers", "regions"]),
@@ -80,11 +86,21 @@ function parseMetadata(fd: FormData): DocumentMetadataInput {
     const issue = r.error.issues[0];
     const field = issue.path[0];
     throw new ServiceError(
-      field === "categoryId" ? "Choose a category." : field === "documentTypeId" ? "Choose a document type." : issue.message,
+      field === "categoryId"
+        ? "Choose a category."
+        : field === "documentTypeId"
+          ? "Choose a document type."
+          : field === "newDocumentType"
+            ? "Enter a document type name (2–80 characters)."
+            : field === "newCategory" || field === "newSubcategory"
+              ? `Enter a ${field === "newCategory" ? "category" : "subcategory"} name (2–80 characters).`
+              : issue.message,
     );
   }
-  return r.data;
+  const { documentTypeId, newDocumentType, categoryId, newCategory, subcategoryId, newSubcategory, ...rest } = r.data;
+  return { ...rest, ...fromNewChoiceFields({ documentTypeId, newDocumentType, categoryId, newCategory, subcategoryId, newSubcategory }) };
 }
+
 
 function parseRevision(fd: FormData) {
   const r = revisionSchema.safeParse(Object.fromEntries(fd));
