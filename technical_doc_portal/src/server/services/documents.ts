@@ -27,7 +27,9 @@ export type DocumentListItem = {
   categoryId: string;
   categoryName: string;
   categorySlug: string;
+  subcategoryId: string | null;
   subcategoryName: string | null;
+  documentTypeId: string;
   documentType: string;
   revisionNumber: string | null;
   revisionId: string | null;
@@ -196,7 +198,9 @@ function toItem(row: Row, settings: PortalSettings): DocumentListItem {
     categoryId: doc.categoryId,
     categoryName: row.categoryName,
     categorySlug: row.categorySlug,
+    subcategoryId: doc.subcategoryId,
     subcategoryName: row.subcategoryName,
+    documentTypeId: doc.documentTypeId,
     documentType: row.documentType,
     revisionNumber: row.revisionNumber,
     revisionId: doc.currentRevisionId,

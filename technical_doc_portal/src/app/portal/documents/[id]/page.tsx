@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { fmtDate } from "@/lib/utils";
 import { formatBytes } from "@/lib/text";
 import { formatSummary } from "@/components/documents/document-card";
+import { CategoryLinks, TypeLink } from "@/components/documents/filter-links";
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
@@ -140,8 +141,8 @@ export default async function PortalDocumentPage({ params, searchParams }: PageP
               <DefinitionList
                 items={[
                   ["Document No.", <span key="n" className="font-mono">{doc.documentNumber}</span>],
-                  ["Category", doc.subcategoryName ? `${doc.categoryName} › ${doc.subcategoryName}` : doc.categoryName],
-                  ["Type", doc.documentType],
+                  ["Category", <CategoryLinks key="c" doc={doc} listPath="/portal/documents" />],
+                  ["Type", <TypeLink key="t" doc={doc} listPath="/portal/documents" />],
                   ...(doc.productModels.length ? [["Product models", doc.productModels.join(", ")] as [string, string]] : []),
                   ["Language", doc.language],
                   ["Source", doc.source],

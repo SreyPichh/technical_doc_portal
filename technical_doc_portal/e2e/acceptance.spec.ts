@@ -526,3 +526,29 @@ test("Document type, category and subcategory — add new ones while uploading, 
   }
   await expect(admin.getByRole("columnheader", { name: "Type" })).toBeVisible();
 });
+
+test("Document page — category and type link to the document list filtered by that value", async ({ browser }) => {
+  for (const [who, open, listPath, rowId] of [
+    [DEALER, openPortalDoc, "/portal/documents", "document-row"],
+    [ADMIN, openAdminDoc, "/admin/documents", "admin-document-row"],
+  ] as const) {
+    const page = await login(browser, who);
+    await open(page, "TEC-26-056");
+    const panel = page.locator("dl").filter({ hasText: "Category" });
+
+    const typeLink = panel.getByRole("link", { name: /./ }).last();
+    const typeName = (await typeLink.textContent())!.trim();
+    await typeLink.click();
+    await page.waitForURL(new RegExp(`${listPath}\\?type=[0-9a-f-]{36}$`));
+    await expect(page.locator('select[name="type"] option:checked')).toHaveText(typeName);
+    await expect(page.getByTestId(rowId).filter({ hasText: "TEC-26-056" })).toHaveCount(1);
+
+    await open(page, "TEC-26-056");
+    const categoryLink = panel.getByRole("link", { name: /./ }).first();
+    const categoryName = (await categoryLink.textContent())!.trim();
+    await categoryLink.click();
+    await page.waitForURL(new RegExp(`${listPath}\\?category=[0-9a-f-]{36}$`));
+    await expect(page.getByTestId("filter-category").locator("option:checked")).toHaveText(categoryName);
+    await expect(page.getByTestId(rowId).filter({ hasText: "TEC-26-056" })).toHaveCount(1);
+  }
+});

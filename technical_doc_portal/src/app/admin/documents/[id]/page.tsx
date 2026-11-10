@@ -19,6 +19,7 @@ import { Table, TD, TH, THead, TR } from "@/components/ui/table";
 import { MetadataForm } from "@/components/admin/metadata-form";
 import { LifecycleButtons } from "@/components/admin/lifecycle-buttons";
 import { OcrButton } from "@/components/admin/ocr-button";
+import { CategoryLinks, TypeLink } from "@/components/documents/filter-links";
 import {
   EditRevisionButton,
   PublishRevisionButton,
@@ -240,8 +241,8 @@ async function Overview({ doc, selectedRev, perms }: { doc: AdminDoc; selectedRe
               items={[
                 ["Number", <span key="n" className="font-mono">{doc.documentNumber}</span>],
                 ["Status", <DocLabelBadge key="s" label={doc.label} />],
-                ["Category", doc.subcategoryName ? `${doc.categoryName} › ${doc.subcategoryName}` : doc.categoryName],
-                ["Type", doc.documentType],
+                ["Category", <CategoryLinks key="c" doc={doc} listPath="/admin/documents" />],
+                ["Type", <TypeLink key="t" doc={doc} listPath="/admin/documents" />],
                 ["Language", doc.language],
                 ["Source", doc.doc.source],
                 ["Products", doc.productModels.join(", ") || "—"],

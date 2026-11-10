@@ -26,7 +26,8 @@ type PdfJs = typeof import("pdfjs-dist");
 let pdfjsPromise: Promise<PdfJs> | null = null;
 function loadPdfjs() {
   pdfjsPromise ??= import("pdfjs-dist").then((m) => {
-    m.GlobalWorkerOptions.workerSrc = "/pdfjs/pdf.worker.min.mjs";
+    // Patched worker (fix for Japanese fonts embedded by Word) — see scripts/copy-pdfjs-assets.mjs.
+    m.GlobalWorkerOptions.workerSrc = "/pdfjs/pdf.worker.mjs";
     return m;
   });
   return pdfjsPromise;
