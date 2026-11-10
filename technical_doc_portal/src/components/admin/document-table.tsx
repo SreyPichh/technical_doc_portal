@@ -17,9 +17,12 @@ import { fmtDate } from "@/lib/utils";
 
 export function AdminDocumentTable({
   items,
+  views = {},
   perms,
 }: {
   items: DocumentListItem[];
+  /** Dealer views per document id (all revisions). */
+  views?: Record<string, { views: number; viewers: number }>;
   perms: { edit: boolean; upload: boolean; archive: boolean };
 }) {
   const [dialog, setDialog] = useState<{ doc: DocumentListItem; action: "archive" | "withdraw" } | null>(null);
@@ -33,6 +36,7 @@ export function AdminDocumentTable({
             <TH>Category</TH>
             <TH>Revision</TH>
             <TH>Last updated</TH>
+            <TH className="text-right">Views</TH>
             <TH>Status</TH>
             <TH className="text-right">Actions</TH>
           </tr>
@@ -65,6 +69,13 @@ export function AdminDocumentTable({
                 )}
               </TD>
               <TD className="tabular text-[13px] whitespace-nowrap">{fmtDate(d.lastPublishedAt ?? d.updatedAt)}</TD>
+              <TD
+                className="tabular text-right text-[13px]"
+                data-testid="view-count"
+                title={views[d.id] ? `${views[d.id].views} views by ${views[d.id].viewers} dealer${views[d.id].viewers === 1 ? "" : "s"}` : "Not viewed yet"}
+              >
+                {(views[d.id]?.views ?? 0).toLocaleString("en")}
+              </TD>
               <TD>
                 <DocLabelBadge label={d.label} />
               </TD>

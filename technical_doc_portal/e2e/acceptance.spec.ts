@@ -552,3 +552,45 @@ test("Document page — category and type link to the document list filtered by 
     await expect(page.getByTestId(rowId).filter({ hasText: "TEC-26-056" })).toHaveCount(1);
   }
 });
+
+test("View counts — dealer views counted once per visit, staff not counted, total carries on after a new revision", async ({ browser }) => {
+  const admin = await login(browser, ADMIN);
+  const docId = await openAdminDoc(admin, "TEC-26-044");
+  const total = async () => {
+    await admin.goto(`/admin/documents/${docId}`);
+    return Number((await admin.getByTestId("document-views").locator("span").first().textContent())!.replace(/,/g, ""));
+  };
+  const before = await total();
+
+  // A dealer opens the document, then refreshes: one view. An administrator opening the dealer page: none.
+  const dealer = await login(browser, DEALER);
+  await dealer.goto(`/portal/documents/${docId}`);
+  await dealer.reload();
+  await admin.goto(`/portal/documents/${docId}`);
+  await expect.poll(total).toBe(before + 1);
+  await admin.goto(`/admin/documents/${docId}`);
+  await expect(admin.getByTestId("document-views")).toContainText("by 1 dealer");
+
+  // Publish a new revision: the dealer's next visit is counted and the total continues.
+  await admin.goto(`/admin/upload?document=${docId}`);
+  await admin.getByTestId("file-input").setInputFiles("e2e/fixtures/TEST-NEW-DOC.pdf");
+  await expect(admin.getByLabel("Revision number")).toHaveValue("R1");
+  await admin.getByTestId("save-draft").click();
+  await admin.waitForURL(/revision=draft/);
+  await admin.getByTestId("pending-banner").getByTestId("publish-revision").click();
+  await admin.getByTestId("confirm-publish").click();
+  await expect(admin.getByTestId("pending-banner")).toHaveCount(0);
+
+  await dealer.goto(`/portal/documents/${docId}`);
+  await expect(dealer.getByText("Revision R1").first()).toBeVisible();
+  await expect.poll(total).toBe(before + 2);
+  await expect(admin.getByTestId("document-views")).toContainText("1 on current revision R1");
+
+  // Per-revision breakdown and the documents table.
+  await admin.goto(`/admin/documents/${docId}?tab=revisions`);
+  const rows = admin.getByTestId("revision-row");
+  await expect(rows.nth(0).locator("td").nth(5)).toHaveText("1");
+  await expect(rows.nth(1).locator("td").nth(5)).toHaveText(String(before + 1));
+  await admin.goto("/admin/documents?q=TEC-26-044");
+  await expect(admin.getByTestId("admin-document-row").first().getByTestId("view-count")).toHaveText(String(before + 2));
+});

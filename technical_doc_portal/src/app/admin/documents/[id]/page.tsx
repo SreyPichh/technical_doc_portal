@@ -20,6 +20,7 @@ import { MetadataForm } from "@/components/admin/metadata-form";
 import { LifecycleButtons } from "@/components/admin/lifecycle-buttons";
 import { OcrButton } from "@/components/admin/ocr-button";
 import { CategoryLinks, TypeLink } from "@/components/documents/filter-links";
+import { documentViewStats } from "@/server/services/document-views";
 import {
   EditRevisionButton,
   PublishRevisionButton,
@@ -200,6 +201,8 @@ async function Overview({ doc, selectedRev, perms }: { doc: AdminDoc; selectedRe
     authoredHtml = renderAuthoredHtml(full?.c);
   }
   const fileUrl = selectedRev ? `/api/files/revisions/${selectedRev.id}` : "";
+  const views = await documentViewStats(doc.id);
+  const currentRev = doc.revisions.find((r) => r.approvalStatus === "published");
   return (
     <div className="grid gap-6 xl:grid-cols-[1fr_340px]">
       <div className="min-w-0 space-y-3">
@@ -246,6 +249,24 @@ async function Overview({ doc, selectedRev, perms }: { doc: AdminDoc; selectedRe
                 ["Language", doc.language],
                 ["Source", doc.doc.source],
                 ["Products", doc.productModels.join(", ") || "—"],
+                [
+                  "Dealer views",
+                  <span key="v" data-testid="document-views">
+                    <span className="tabular font-medium">{views.views.toLocaleString("en")}</span>
+                    {views.views > 0 && (
+                      <span className="text-muted">
+                        {" "}
+                        by {views.viewers.toLocaleString("en")} dealer{views.viewers === 1 ? "" : "s"}
+                      </span>
+                    )}
+                    {currentRev && doc.revisions.length > 1 && (
+                      <span className="block text-[12px] text-muted">
+                        {(views.byRevision.get(currentRev.id) ?? 0).toLocaleString("en")} on current revision {currentRev.revisionNumber}
+                      </span>
+                    )}
+                    {views.lastViewedAt && <span className="block text-[12px] text-muted">Last viewed {fmtDate(views.lastViewedAt)}</span>}
+                  </span>,
+                ],
                 ["Dealer access", doc.doc.visibility === "all_dealers" ? "All dealers" : doc.regions.map((r) => r.name).join(", ")],
                 ["First published", fmtDate(doc.firstPublishedAt)],
                 ["Last updated", fmtDate(doc.lastPublishedAt)],
@@ -348,7 +369,7 @@ async function MetadataTab({ doc, canEdit, user }: { doc: AdminDoc; canEdit: boo
   );
 }
 
-function RevisionsTab({
+async function RevisionsTab({
   doc,
   perms,
   compareId,
@@ -362,6 +383,7 @@ function RevisionsTab({
   const revisions = doc.revisions;
   const current = revisions.find((r) => r.approvalStatus === "published");
   const compare = compareId ? revisions.find((r) => r.id === compareId) : undefined;
+  const views = await documentViewStats(doc.id);
   return (
     <div className="space-y-6">
       <Card>
@@ -377,6 +399,9 @@ function RevisionsTab({
               <TH>Uploaded</TH>
               <TH>Published</TH>
               <TH>Status</TH>
+              <TH className="text-right" title="Dealer views while this revision was the current one">
+                Views
+              </TH>
               <TH>Notes</TH>
               <TH className="text-right">Actions</TH>
             </tr>
@@ -398,6 +423,7 @@ function RevisionsTab({
                   <RevisionStatusBadge status={r.approvalStatus} />
                   {r.restoredFromId && <span className="mt-1 block text-[11px] text-muted">Restored copy</span>}
                 </TD>
+                <TD className="tabular text-right text-[13px]">{(views.byRevision.get(r.id) ?? 0).toLocaleString("en")}</TD>
                 <TD className="max-w-64 text-[13px] text-muted">
                   <span className="line-clamp-3 whitespace-pre-line">{r.revisionNotes ?? "—"}</span>
                 </TD>

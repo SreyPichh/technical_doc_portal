@@ -3,6 +3,7 @@ import Link from "next/link";
 import { FilePlus2, FileSearch } from "lucide-react";
 import { requirePermission } from "@/server/auth/dal";
 import { getCategoryTree, getDocumentTypes, getLanguages, searchDocuments } from "@/server/services/documents";
+import { viewCounts } from "@/server/services/document-views";
 import { FilterBar } from "@/components/documents/filter-bar";
 import { AdminDocumentTable } from "@/components/admin/document-table";
 import { DocumentCard } from "@/components/documents/document-card";
@@ -23,6 +24,7 @@ export default async function AdminDocuments({ searchParams }: PageProps<"/admin
     getDocumentTypes({ includeInactive: true }),
     getLanguages(user, "admin"),
   ]);
+  const views = Object.fromEntries(await viewCounts(result.items.map((d) => d.id)));
   return (
     <div>
       <PageHeader
@@ -67,6 +69,7 @@ export default async function AdminDocuments({ searchParams }: PageProps<"/admin
       ) : (
         <AdminDocumentTable
           items={result.items}
+          views={views}
           perms={{
             edit: can(user.role, "documents.edit_metadata"),
             upload: can(user.role, "documents.upload"),

@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { after } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { Download, Printer } from "lucide-react";
 import { requirePermission } from "@/server/auth/dal";
 import { db, schema } from "@/server/db";
 import { getPortalDocument } from "@/server/services/documents";
+import { recordDocumentView } from "@/server/services/document-views";
 import { renderAuthoredHtml } from "@/server/services/authored-render";
 import { PdfViewer } from "@/components/pdf/pdf-viewer";
 import { SaveButton } from "@/components/documents/save-button";
@@ -40,6 +42,8 @@ export default async function PortalDocumentPage({ params, searchParams }: PageP
     .from(schema.savedDocuments)
     .where(and(eq(schema.savedDocuments.userId, user.id), eq(schema.savedDocuments.documentId, doc.id)));
   const rev = doc.revision;
+  // Counted after the page is sent, so it never slows the page down.
+  after(() => recordDocumentView(user, doc.id, rev.id).catch((e) => console.error("Could not record document view", e)));
   const fileUrl = `/api/files/revisions/${rev.id}`;
   const authoredHtml = doc.kind === "authored" ? renderAuthoredHtml(rev.authoredContent) : null;
 

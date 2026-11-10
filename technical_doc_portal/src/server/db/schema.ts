@@ -376,6 +376,26 @@ export const downloads = pgTable(
   (t) => [index("downloads_user_idx").on(t.userId, t.createdAt), index("downloads_doc_idx").on(t.documentId)],
 );
 
+/** One row per dealer view of a document page (repeat views of the same revision within 30 minutes are not recorded).
+ *  Counted per document, so the total carries on across revisions; revisionId says which one was shown. */
+export const documentViews = pgTable(
+  "document_views",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    documentId: uuid("document_id")
+      .notNull()
+      .references(() => documents.id, { onDelete: "cascade" }),
+    revisionId: uuid("revision_id")
+      .notNull()
+      .references(() => documentRevisions.id, { onDelete: "cascade" }),
+    createdAt: ts("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("document_views_doc_idx").on(t.documentId, t.createdAt), index("document_views_user_doc_idx").on(t.userId, t.documentId, t.createdAt)],
+);
+
 export const savedDocuments = pgTable(
   "saved_documents",
   {
