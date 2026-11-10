@@ -16,10 +16,16 @@ let dummyHash: Promise<string> | undefined;
 const getDummyHash = () => (dummyHash ??= hashPassword(crypto.randomUUID()));
 
 const loginSchema = z.object({
-  email: z.string().trim().toLowerCase().email("Enter a valid e-mail address."),
+  email: z.string().trim().toLowerCase().min(1, "Enter your email address.").email("Enter a valid email address, e.g. name@company.com."),
   password: z.string().min(1, "Enter your password.").max(200),
   next: z.string().optional(),
 });
+
+/**
+ * Sign-in outcome codes, so the form can show the right state:
+ * validation (with `field`), invalid_credentials, inactive, rate_limited, or ok with `redirectTo`.
+ */
+export type LoginCode = "validation" | "invalid_credentials" | "inactive" | "rate_limited";
 
 function safeNext(next: string | undefined) {
   if (!next || !next.startsWith("/") || next.startsWith("//") || next.startsWith("/api/")) return null;
@@ -28,7 +34,10 @@ function safeNext(next: string | undefined) {
 
 export async function loginAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const parsed = loginSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    return { error: issue.message, data: { code: "validation", field: String(issue.path[0] ?? "") } };
+  }
   const { email, password } = parsed.data;
   const { ip } = await requestMeta();
 
@@ -44,7 +53,10 @@ export async function loginAction(_prev: ActionState, formData: FormData): Promi
         .where(and(eq(schema.loginAttempts.ip, ip), eq(schema.loginAttempts.success, false), gte(schema.loginAttempts.createdAt, since)))
     : [{ byIp: 0 }];
   if (byEmail >= 5 || byIp >= 30) {
-    return { error: "Too many failed sign-in attempts. Please wait 15 minutes and try again." };
+    return {
+      error: "Too many unsuccessful sign-in attempts. For your security, please wait 15 minutes before trying again.",
+      data: { code: "rate_limited" },
+    };
   }
 
   const [user] = await db
@@ -62,12 +74,10 @@ export async function loginAction(_prev: ActionState, formData: FormData): Promi
         description: user.status !== "active" ? `Sign-in refused for suspended account ${email}` : `Failed sign-in for ${email}`,
       });
     }
-    return {
-      error:
-        user && ok && user.status !== "active"
-          ? "This account has been suspended. Please contact your NSK representative."
-          : "Incorrect e-mail address or password.",
-    };
+    // An inactive account is only revealed to someone who knows the correct password.
+    return user && ok && user.status !== "active"
+      ? { error: "Your account is inactive. Please contact your NSK administrator to restore access.", data: { code: "inactive" } }
+      : { error: "The email address or password is incorrect. Please check and try again.", data: { code: "invalid_credentials" } };
   }
 
   await db.insert(schema.loginAttempts).values({ email, ip, success: true });
@@ -76,8 +86,12 @@ export async function loginAction(_prev: ActionState, formData: FormData): Promi
   if (isStaff(user.role)) {
     await logActivity({ userId: user.id, action: "auth.login", description: `${user.fullName} signed in` });
   }
-  if (user.mustChangePassword) redirect("/account/password?required=1");
-  redirect(safeNext(parsed.data.next) ?? (isStaff(user.role) ? "/admin" : "/portal"));
+  // The form shows a short "signed in" state, then opens this page. (Pages also enforce a
+  // required password change on their own, so the destination cannot skip it.)
+  const redirectTo = user.mustChangePassword
+    ? "/account/password?required=1"
+    : (safeNext(parsed.data.next) ?? (isStaff(user.role) ? "/admin" : "/portal"));
+  return { ok: true, message: `Signed in as ${user.fullName}.`, data: { redirectTo } };
 }
 
 export async function logoutAction() {

@@ -19,8 +19,8 @@ async function login(browser: Browser, who: { email: string; password: string })
   const ctx = await browser.newContext();
   const page = await ctx.newPage();
   await page.goto("/login");
-  await page.getByLabel("E-mail address").fill(who.email);
-  await page.getByLabel("Password").fill(who.password);
+  await page.getByLabel("Email address").fill(who.email);
+  await page.getByLabel("Password", { exact: true }).fill(who.password);
   await page.getByRole("button", { name: "Sign in" }).click();
   await page.waitForURL(/\/(admin|portal)/);
   return page;
@@ -347,15 +347,23 @@ test("Admin management — dealer account with forced password change, subcatego
   const ctx = await browser.newContext();
   const d = await ctx.newPage();
   await d.goto("/login");
-  await d.getByLabel("E-mail address").fill("new.dealer@sample-dealer.test");
-  await d.getByLabel("Password").fill(temp);
+  await d.getByLabel("Email address").fill("new.dealer@sample-dealer.test");
+  await d.getByLabel("Password", { exact: true }).fill(temp);
   await d.getByRole("button", { name: "Sign in" }).click();
   await d.waitForURL(/\/account\/password\?required=1/);
   await d.goto("/portal");
   await d.waitForURL(/\/account\/password/);
-  await d.getByLabel("Current password").fill(temp);
+  await d.getByLabel("Current password", { exact: true }).fill(temp);
   await d.getByLabel("New password", { exact: true }).fill("Brand-New-Pass-2026!");
-  await d.getByLabel("Confirm new password").fill("Brand-New-Pass-2026!");
+  // The eye button reveals and hides what was typed
+  const newPw = d.getByLabel("New password", { exact: true });
+  await expect(newPw).toHaveAttribute("type", "password");
+  await d.getByRole("button", { name: "Show new password" }).click();
+  await expect(newPw).toHaveAttribute("type", "text");
+  await expect(newPw).toHaveValue("Brand-New-Pass-2026!");
+  await d.getByRole("button", { name: "Hide new password" }).click();
+  await expect(newPw).toHaveAttribute("type", "password");
+  await d.getByLabel("Confirm new password", { exact: true }).fill("Brand-New-Pass-2026!");
   await d.getByRole("button", { name: "Update password" }).click();
   await d.waitForURL(/\/portal\/account\?pw=1/);
   await expect(d.getByText("Your password has been changed.")).toBeVisible();
@@ -414,4 +422,55 @@ test("Product model filter narrows results and shows a removable filter chip", a
   await expect(dealer.getByTestId("document-row")).toContainText("TEC-26-056");
   await dealer.getByRole("link", { name: "Remove filter: Model Z-SG45L" }).click();
   await expect(dealer.getByTestId("result-count")).not.toHaveText(/^1 document/);
+});
+
+test("Sign-in states — empty fields, invalid email, wrong password, inactive account", async ({ browser }) => {
+  const NEW_DEALER = "new.dealer@sample-dealer.test"; // created in the admin management test
+  const page = await (await browser.newContext()).newPage();
+  await page.goto("/login");
+  const email = page.getByLabel("Email address");
+  const password = page.getByLabel("Password", { exact: true });
+  const signIn = page.getByRole("button", { name: "Sign in" });
+
+  // Empty fields are caught in the browser, before anything is sent
+  await signIn.click();
+  await expect(page.getByText("Enter your email address.")).toBeVisible();
+  await expect(page.getByText("Enter your password.")).toBeVisible();
+  await expect(email).toHaveAttribute("aria-invalid", "true");
+  await expect(email).toBeFocused();
+
+  await email.fill("not-an-email");
+  await password.fill("whatever-123");
+  await signIn.click();
+  await expect(page.getByText(/Enter a valid email address/)).toBeVisible();
+
+  // Wrong password: generic message, email kept, password cleared
+  await email.fill(NEW_DEALER);
+  await password.fill("Wrong-Password-123");
+  await signIn.click();
+  await expect(page.getByTestId("login-error")).toContainText("email address or password is incorrect");
+  await expect(email).toHaveValue(NEW_DEALER);
+  await expect(password).toHaveValue("");
+  await expect(password).toBeFocused();
+
+  // Suspended account: only revealed with the correct password
+  const admin = await login(browser, ADMIN);
+  await admin.goto("/admin/dealers");
+  const row = admin.getByTestId("dealer-row").filter({ hasText: NEW_DEALER });
+  await row.getByRole("button", { name: `Actions for ${NEW_DEALER}` }).click();
+  await admin.getByRole("menuitem", { name: "Suspend access" }).click();
+  await expect(row).toContainText("Suspended");
+
+  await password.fill("Brand-New-Pass-2026!");
+  await signIn.click();
+  await expect(page.getByTestId("login-error")).toContainText("Your account is inactive");
+  await expect(page).toHaveURL(/\/login/);
+
+  // Restore access, then the same credentials sign in
+  await row.getByRole("button", { name: `Actions for ${NEW_DEALER}` }).click();
+  await admin.getByRole("menuitem", { name: "Restore access" }).click();
+  await expect(row).toContainText("Active");
+  await password.fill("Brand-New-Pass-2026!");
+  await signIn.click();
+  await page.waitForURL(/\/portal/);
 });

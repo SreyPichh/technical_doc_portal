@@ -2,7 +2,10 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 export const fieldBase =
-  "w-full rounded-md border border-border-strong bg-surface px-3 text-sm text-foreground placeholder:text-subtle shadow-xs transition-colors focus:outline-none focus:border-navy disabled:opacity-60 disabled:bg-grey-50 aria-[invalid=true]:border-red";
+  "w-full rounded-md border border-border-strong bg-surface px-3 text-sm text-foreground placeholder:text-subtle shadow-xs transition-[border-color,box-shadow] " +
+  "hover:border-[#9aa6b8] focus:outline-none focus:border-navy focus:shadow-[0_0_0_1px_var(--navy)] " +
+  "disabled:opacity-60 disabled:bg-grey-50 read-only:bg-grey-50/60 " +
+  "aria-[invalid=true]:border-red aria-[invalid=true]:focus:shadow-[0_0_0_1px_var(--red)]";
 
 export function Input({ className, ...props }: React.ComponentProps<"input">) {
   return <input className={cn(fieldBase, "h-9", className)} {...props} />;
