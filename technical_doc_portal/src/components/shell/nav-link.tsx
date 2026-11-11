@@ -11,6 +11,8 @@ export function NavLink({
   activeClassName,
   children,
   onClick,
+  title,
+  ariaLabel,
 }: {
   href: string;
   exact?: boolean;
@@ -18,11 +20,22 @@ export function NavLink({
   activeClassName?: string;
   children: React.ReactNode;
   onClick?: () => void;
+  title?: string;
+  ariaLabel?: string;
 }) {
   const pathname = usePathname();
-  const active = exact ? pathname === href : pathname === href || pathname.startsWith(href + "/");
+  const active = exact
+    ? pathname === href
+    : pathname === href || pathname.startsWith(href + "/");
   return (
-    <Link href={href} className={cn(className, active && activeClassName)} aria-current={active ? "page" : undefined} onClick={onClick}>
+    <Link
+      href={href}
+      className={cn(className, active && activeClassName)}
+      aria-current={active ? "page" : undefined}
+      onClick={onClick}
+      title={title}
+      aria-label={ariaLabel}
+    >
       {children}
     </Link>
   );

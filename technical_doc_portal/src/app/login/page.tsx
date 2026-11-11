@@ -36,7 +36,7 @@ function Backdrop() {
       <svg aria-hidden className="pointer-events-none absolute -right-24 top-0 h-full w-72 text-white/[0.04]" viewBox="0 0 100 400" preserveAspectRatio="none">
         <polygon points="40,0 100,0 100,400 0,400" fill="currentColor" />
       </svg>
-      <svg aria-hidden className="pointer-events-none absolute -right-6 top-0 h-full w-40 text-red/40" viewBox="0 0 100 400" preserveAspectRatio="none">
+      <svg aria-hidden className="pointer-events-none absolute -right-6 top-0 h-full w-40 text-[#ff671d]" viewBox="0 0 100 400" preserveAspectRatio="none">
         <line x1="62" y1="0" x2="2" y2="400" stroke="currentColor" strokeWidth="0.6" vectorEffect="non-scaling-stroke" />
       </svg>
     </>
@@ -67,7 +67,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
               {FEATURES.map(({ icon: Icon, text }) => (
                 <li key={text} className="flex items-center gap-4">
                   <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-white/[0.07] ring-1 ring-white/10">
-                    <Icon className="size-[18px] text-[#ff8a99]" aria-hidden />
+                    <Icon className="size-[18px] text-[#ff671d]" aria-hidden />
                   </span>
                   <span className="text-[15px] leading-snug text-white/85">{text}</span>
                 </li>

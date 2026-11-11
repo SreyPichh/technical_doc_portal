@@ -417,6 +417,15 @@ export async function adminStats() {
   return { ...docStats, ...dealerStats, pendingRevisions: pending.n, downloads30d: dl.n };
 }
 
+/** Number of draft documents/revisions waiting for approval (sidebar badge). */
+export async function pendingApprovalCount() {
+  const [row] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(r)
+    .where(eq(r.approvalStatus, "draft"));
+  return row?.n ?? 0;
+}
+
 export async function pendingRevisions(limit = 10) {
   return db
     .select({

@@ -167,6 +167,8 @@ test("Scenario B + F — new revision stays draft until approved, then dealers g
   await admin.getByTestId("save-draft").click();
   await admin.waitForURL(/revision=draft/);
   await expect(admin.getByTestId("pending-banner")).toContainText("Revision R2 is awaiting review");
+  // The sidebar shows the number of drafts awaiting approval.
+  await expect(admin.getByTestId("pending-badge")).toBeVisible();
 
   // Find the draft file URL (for the permissions test)
   await admin.goto(`/admin/documents/${docId}?tab=revisions`);

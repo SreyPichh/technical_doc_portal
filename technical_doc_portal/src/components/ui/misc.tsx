@@ -128,24 +128,41 @@ export function StatCard({
   hint,
   href,
   accent,
+  icon,
 }: {
   label: string;
   value: number | string;
   hint?: string;
   href?: string;
   accent?: "green" | "blue" | "red" | "amber";
+  /** A lucide icon element, shown in a tinted tile in the accent colour (navy when no accent). */
+  icon?: React.ReactNode;
 }) {
-  const bar = { green: "bg-green", blue: "bg-blue", red: "bg-red", amber: "bg-amber" }[accent ?? "green"];
+  const tint = { green: "bg-green-50 text-green", blue: "bg-blue-50 text-blue", red: "bg-red-50 text-red", amber: "bg-amber-50 text-amber" }[
+    accent ?? "green"
+  ];
   const inner = (
-    <div className="relative h-full rounded-lg border border-border bg-surface px-4 py-3.5 shadow-xs transition-colors hover:border-navy-100">
-      {accent && <span className={cn("absolute left-0 top-3 bottom-3 w-[3px] rounded-r", bar)} />}
-      <p className="text-[12px] font-medium uppercase tracking-wide text-muted">{label}</p>
-      <p className="mt-1 text-2xl font-semibold tabular text-foreground">{value}</p>
-      {hint && <p className="mt-0.5 text-xs text-subtle">{hint}</p>}
+    <div
+      className={cn(
+        "flex h-full flex-col rounded-lg border border-border bg-surface p-4 shadow-xs transition-[border-color,box-shadow]",
+        href && "group-hover:border-navy-100 group-hover:shadow-sm",
+      )}
+    >
+      <div className="flex items-start justify-between gap-3">
+        {/* Room for two lines, so the numbers line up across a row even when a label wraps. */}
+        <p className="line-clamp-2 min-h-[2.75em] pt-0.5 text-[12px] font-medium uppercase leading-snug tracking-wide text-muted">{label}</p>
+        {icon && (
+          <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-md [&>svg]:size-4", accent ? tint : "bg-navy-50 text-navy")} aria-hidden>
+            {icon}
+          </span>
+        )}
+      </div>
+      <p className="mt-2 text-[28px] font-semibold leading-none tracking-tight tabular text-foreground">{value}</p>
+      {hint && <p className="mt-2 text-xs leading-snug text-subtle">{hint}</p>}
     </div>
   );
   return href ? (
-    <Link href={href} className="block">
+    <Link href={href} className="group block rounded-lg">
       {inner}
     </Link>
   ) : (

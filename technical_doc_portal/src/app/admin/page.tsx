@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { desc, eq } from "drizzle-orm";
-import { FilePlus2, FileStack, FolderTree, UserPlus } from "lucide-react";
+import { Archive, CheckCircle2, FilePlus2, FileStack, FileText, FolderTree, RefreshCw, Sparkles, UserPlus, Users } from "lucide-react";
 import { requirePermission } from "@/server/auth/dal";
 import { db, schema } from "@/server/db";
 import { adminStats, pendingRevisions } from "@/server/services/documents";
@@ -61,13 +61,39 @@ export default async function AdminOverview({ searchParams }: PageProps<"/admin"
     <div className="space-y-6">
       <PageHeader title="Overview" description={`Welcome back, ${user.fullName}.`} />
       {sp.pw === "1" && <Alert tone="success">Your password has been changed.</Alert>}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-        <StatCard label="Total documents" value={stats.total} href="/admin/documents" />
-        <StatCard label="Published" value={stats.published} href="/admin/documents?label=NEW&label=UPDATED&label=CURRENT" accent="green" />
-        <StatCard label="New" value={stats.newDocs} hint="NEW label active" href="/admin/documents?label=NEW" accent="green" />
-        <StatCard label="Updated" value={stats.updatedDocs} hint="UPDATED label active" href="/admin/documents?label=UPDATED" accent="blue" />
-        <StatCard label="Archived" value={stats.archived + stats.withdrawn} hint={`${stats.withdrawn} withdrawn`} href="/admin/documents?label=ARCHIVED&label=WITHDRAWN" />
-        <StatCard label="Dealer accounts" value={stats.dealers} hint={`${stats.activeDealers} active · ${stats.downloads30d} downloads (30 d)`} href="/admin/dealers" />
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-6">
+        <StatCard
+          label="Total documents"
+          value={stats.total}
+          hint={stats.drafts ? `${stats.drafts} not yet published` : "All published or retired"}
+          href="/admin/documents"
+          icon={<FileText />}
+        />
+        <StatCard
+          label="Published"
+          value={stats.published}
+          hint="Visible to dealers"
+          href="/admin/documents?label=NEW&label=UPDATED&label=CURRENT"
+          accent="green"
+          icon={<CheckCircle2 />}
+        />
+        <StatCard label="New" value={stats.newDocs} hint="NEW label active" href="/admin/documents?label=NEW" accent="green" icon={<Sparkles />} />
+        <StatCard label="Updated" value={stats.updatedDocs} hint="UPDATED label active" href="/admin/documents?label=UPDATED" accent="blue" icon={<RefreshCw />} />
+        <StatCard
+          label="Archived"
+          value={stats.archived + stats.withdrawn}
+          hint={`${stats.withdrawn} withdrawn`}
+          href="/admin/documents?label=ARCHIVED&label=WITHDRAWN"
+          accent="amber"
+          icon={<Archive />}
+        />
+        <StatCard
+          label="Dealer accounts"
+          value={stats.dealers}
+          hint={`${stats.activeDealers} active · ${stats.downloads30d} downloads (30 d)`}
+          href="/admin/dealers"
+          icon={<Users />}
+        />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-3">
