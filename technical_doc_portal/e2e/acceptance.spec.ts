@@ -596,3 +596,52 @@ test("View counts — dealer views counted once per visit, staff not counted, to
   await admin.goto("/admin/documents?q=TEC-26-044");
   await expect(admin.getByTestId("admin-document-row").first().getByTestId("view-count")).toHaveText(String(before + 2));
 });
+
+test("Security — headers, per-request CSP nonce, and no policy violations on key pages", async ({ browser, request }) => {
+  // Headers on a public page; the nonce is new on every request and is the one Next.js puts on its scripts.
+  const first = await request.get("/login");
+  const second = await request.get("/login");
+  const h = first.headers();
+  const nonce = h["content-security-policy"]?.match(/'nonce-([^']+)'/)?.[1];
+  expect(h["content-security-policy"]).toMatch(/script-src 'self' 'nonce-[^']+' 'strict-dynamic'/);
+  expect(h["content-security-policy"]).toContain("object-src 'none'");
+  expect(h["content-security-policy"]).toContain("frame-ancestors 'self'");
+  expect(nonce).toBeTruthy();
+  expect(second.headers()["content-security-policy"]).not.toContain(nonce!);
+  expect(await first.text()).toContain(`nonce="${nonce}"`);
+  expect(h["strict-transport-security"]).toContain("max-age=");
+  expect(h["x-frame-options"]).toBe("SAMEORIGIN");
+  expect(h["cross-origin-opener-policy"]).toBe("same-origin");
+  expect(h["x-powered-by"]).toBeUndefined();
+
+  // Pages that use the PDF viewer (worker, fonts, WebAssembly) and the editor run without CSP violations.
+  const violations: string[] = [];
+  const watch = (page: Page) =>
+    page.on("console", (m) => {
+      if (/Content Security Policy|Refused to (load|execute|apply|connect|create|frame)/i.test(m.text())) violations.push(`${page.url()}: ${m.text()}`);
+    });
+  const fresh = await (await browser.newContext()).newPage();
+  watch(fresh);
+  await fresh.goto("/login");
+  await expect(fresh.getByRole("button", { name: "Sign in" })).toBeVisible();
+
+  const admin = await login(browser, ADMIN);
+  watch(admin);
+  await admin.goto("/admin");
+  await expect(admin.getByTestId("admin-sidebar")).toBeVisible();
+  await openAdminDoc(admin, "TEC-26-056");
+  await expect(admin.getByTestId("pdf-viewer").getByTestId("page-count")).toHaveText("/ 2");
+  await admin.goto("/admin/authored/new");
+  await expect(admin.locator(".ProseMirror").first()).toBeVisible();
+
+  const dealer = await login(browser, DEALER);
+  watch(dealer);
+  await openPortalDoc(dealer, "TEC-26-056");
+  await expect(dealer.getByTestId("pdf-viewer").getByTestId("page-count")).toHaveText("/ 2");
+
+  // Document files are not embeddable by other sites.
+  const fileUrl = await dealer.getByTestId("download-pdf").getAttribute("href");
+  if (fileUrl) expect((await dealer.request.get(fileUrl)).headers()["cross-origin-resource-policy"]).toBe("same-origin");
+
+  expect(violations).toEqual([]);
+});

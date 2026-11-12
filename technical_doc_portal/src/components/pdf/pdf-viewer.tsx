@@ -150,7 +150,7 @@ export function PdfViewer({
       states.clear();
       cache.clear();
       task?.destroy();
-      docRef.current?.destroy();
+      docRef.current?.loadingTask.destroy();
       docRef.current = null;
       pageTexts.current = null;
     };

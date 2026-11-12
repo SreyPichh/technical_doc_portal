@@ -50,7 +50,7 @@ export async function runOcrJob(revisionId: string, userId: string) {
       }
     } finally {
       await worker.terminate();
-      await doc.destroy();
+      await doc.loadingTask.destroy();
     }
     const text = pages.join("\f");
     await db.transaction(async (tx) => {

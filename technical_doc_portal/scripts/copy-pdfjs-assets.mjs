@@ -24,7 +24,9 @@ await mkdir(dest, { recursive: true });
  * PDF file itself is never changed.
  */
 const MARKER = "[NSK portal patch: CID-keyed CFF in a simple font]";
-const ANCHOR = "    charCodeToGlyphId = type1FontGlyphMapping(properties, encoding, charsets);\n";
+// pdfjs-dist is pinned to an exact version in package.json, so this anchor stays valid; after an
+// upgrade the script warns (and copies the unpatched worker) if the code moved.
+const ANCHOR = "    return type1FontGlyphMapping(properties, encoding, charsets);\n";
 // Unicode → Adobe-Japan1 CID where it is not "U+0020–U+007E → CID 1–95" (from UniJIS-UTF16-H).
 const JAPAN1 =
   "5c:97,7c:99,7e:100,a0:1,a1:101,a2:102,a3:103,a4:107,a5:61,a6:93,a7:720,a8:647,a9:152,aa:140,ab:109,ac:153,ad:151,ae:154," +
@@ -37,30 +39,29 @@ const JAPAN1 =
   "201e:121,2020:776,2021:777,2022:119,2026:668,2030:772,2039:110,203a:111,20ac:9354,2122:228";
 const FONT_FIX = `    if (cff.isCIDFont) {
       // ${MARKER}
-      const glyphOfCid = Object.create(null);
+      const glyphOfCid = new Map();
       for (let gid = 0; gid < charsets.length; gid++) {
-        glyphOfCid[charsets[gid]] = gid;
+        glyphOfCid.set(charsets[gid], gid);
       }
       const ros = cff.topDict.getByName("ROS");
-      const japan1 = ros && cff.strings.get(ros[1]) === "Japan1";
-      const exceptions = Object.create(null);
-      if (japan1) {
+      const exceptions = new Map();
+      if (ros && cff.strings.get(ros[1]) === "Japan1") {
         for (const pair of "${JAPAN1}".split(",")) {
           const [unicode, cid] = pair.split(":");
-          exceptions[parseInt(unicode, 16)] = +cid;
+          exceptions.set(parseInt(unicode, 16), +cid);
         }
       }
-      charCodeToGlyphId = Object.create(null);
+      const charCodeToGlyphId = new Map();
       for (let charCode = 0; charCode < 256; charCode++) {
         const text = properties.toUnicode?.get(charCode);
         let unicode = typeof text === "string" && text.length === 1 ? text.charCodeAt(0) : -1;
         if (unicode < 0 && charCode >= 0x20 && charCode <= 0x7e) {
           unicode = charCode;
         }
-        const cid = exceptions[unicode] ?? (unicode >= 0x20 && unicode <= 0x7e ? unicode - 31 : undefined);
-        const gid = cid === undefined ? undefined : glyphOfCid[cid];
+        const cid = exceptions.get(unicode) ?? (unicode >= 0x20 && unicode <= 0x7e ? unicode - 31 : undefined);
+        const gid = cid === undefined ? undefined : glyphOfCid.get(cid);
         if (gid !== undefined) {
-          charCodeToGlyphId[charCode] = gid;
+          charCodeToGlyphId.set(charCode, gid);
         }
       }
       return charCodeToGlyphId;

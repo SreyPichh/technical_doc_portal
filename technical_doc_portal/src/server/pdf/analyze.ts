@@ -85,7 +85,7 @@ export async function analyzePdf(buf: Buffer): Promise<PdfAnalysis> {
       suggestions: suggestMetadata(pages[0] ?? ""),
     };
   } finally {
-    await doc.destroy();
+    await doc.loadingTask.destroy();
   }
 }
 
